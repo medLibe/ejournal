@@ -5,60 +5,59 @@
         <!-- data general ledger -->
         <div class="bg-white p-8 mt-5 rounded-lg shadow">
 
+            <!-- <Message 
+                v-if="responseMessage" 
+                :severity="responseMessage.severity" 
+                :icon="responseMessage.severity === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'"
+                closable 
+                @close="responseMessage = null"
+                class="mt-3 mb-5"
+            >
+                <ul v-if="Array.isArray(responseMessage.detail)">
+                    <li v-for="(msg, idx) in responseMessage.detail" :key="idx">{{ msg }}</li>
+                </ul>
+                <span v-else>{{ responseMessage.detail }}</span>
+            </Message> -->
+
             <!-- voucher info -->
             <div class="flex flex-wrap gap-8 mb-8">
                 <div class="w-full md:w-1/2">
                     <div class="flex flex-col gap-5">
-                        <FloatLabel variant="on">
-                            <DatePicker 
-                            v-model="voucherInfo.transactionDate"
-                            inputId="transactionDate"
-                            showIcon
-                            iconDisplay="input"
-                            class="w-full" />
-                            <label for="transactionDate">Tanggal Transaksi</label>
-                        </FloatLabel>
-                        <Message 
-                            v-if="getFieldError('transaction_date')" severity="error" size="small" variant="simple">
-                            {{ getFieldError('transaction_date') }}
-                        </Message>
+                    <FloatLabel variant="on">
+                        <DatePicker 
+                        v-model="voucherInfo.transactionDate"
+                        inputId="transactionDate"
+                        showIcon
+                        iconDisplay="input"
+                        class="w-full" />
+                        <label for="transactionDate">Tanggal Transaksi</label>
+                    </FloatLabel>
+                    <Message 
+                        v-if="getFieldError('transaction_date')" severity="error" size="small" variant="simple">
+                        {{ getFieldError('transaction_date') }}
+                    </Message>
 
-                        <FloatLabel variant="on">
-                            <Select
-                            v-model="voucherInfo.reference"
-                            :options="referenceList"
-                            optionLabel="name"
-                            optionValue="id"
-                            class="w-full"
-                            />
-                            <label for="reference">Tipe Sumber</label>
-                        </FloatLabel>
-                        <Message 
-                            v-if="getFieldError('reference')" severity="error" size="small" variant="simple">
-                            {{ getFieldError('reference') }}
-                        </Message>
+                    <FloatLabel variant="on">
+                        <InputText 
+                        v-model="voucherInfo.referenceNo" 
+                        class="w-full" />
+                        <label for="referenceNo">Nomor Sumber</label>
+                    </FloatLabel>
+                    <Message 
+                        v-if="getFieldError('reference_no')" severity="error" size="small" variant="simple">
+                        {{ getFieldError('reference_no') }}
+                    </Message>
 
-                        <FloatLabel variant="on">
-                            <InputText 
-                            v-model="voucherInfo.referenceNo" 
-                            class="w-full" />
-                            <label for="referenceNo">Nomor Sumber</label>
-                        </FloatLabel>
-                        <Message 
-                            v-if="getFieldError('reference_no')" severity="error" size="small" variant="simple">
-                            {{ getFieldError('reference_no') }}
-                        </Message>
-
-                        <FloatLabel variant="on">
-                            <InputText 
-                            v-model="voucherInfo.department" 
-                            class="w-full" />
-                            <label for="department">Departemen</label>
-                        </FloatLabel>
-                        <Message 
-                            v-if="getFieldError('department')" severity="error" size="small" variant="simple">
-                            {{ getFieldError('department') }}
-                        </Message>
+                    <FloatLabel variant="on">
+                        <InputText 
+                        v-model="voucherInfo.department" 
+                        class="w-full" />
+                        <label for="department">Departemen</label>
+                    </FloatLabel>
+                    <Message 
+                        v-if="getFieldError('department')" severity="error" size="small" variant="simple">
+                        {{ getFieldError('department') }}
+                    </Message>
                     </div>
                 </div>
 
@@ -116,7 +115,6 @@ import Message from 'primevue/message'
 import GeneralLedgerAdjustmentRow from '../components/others/GeneralLedgerAdjustmentRow.vue'
 import DatePicker from 'primevue/datepicker'
 import FloatLabel from 'primevue/floatlabel'
-import Select from 'primevue/select'
 
 export default {
     name: 'GeneralLedgerAdjustment',
@@ -126,11 +124,10 @@ export default {
         Dialog,
         InputText,
         Textarea,
-        Button,
-        Message,
         DatePicker,
         FloatLabel,
-        Select,
+        Button,
+        Message,
         GeneralLedgerAdjustmentRow
     },
     inject: ['showLoader', 'hideLoader'],
@@ -140,28 +137,16 @@ export default {
             editingRows: [],
             referenceNo: '',
             isLoading: false,
+            responseMessage: null,
             fieldErrors: {},
             accounts: [],
             filteredAccounts: [],
-            referenceList: [
-                { id: 'Bukti Jurnal', name: 'Bukti Jurnal' },
-                { id: 'Faktur Pembelian', name: 'Faktur Pembelian' },
-                { id: 'Faktur Penjualan', name: 'Faktur Penjualan' },
-                { id: 'Pembayaran', name: 'Pembayaran' },
-                { id: 'Pembelian', name: 'Pembelian' },
-                { id: 'Pembayaran Pembelian', name: 'Pembayaran Pembelian' },
-                { id: 'Penerimaan Penjualan', name: 'Penerimaan Penjualan' },
-                { id: 'Penerimaan Barang', name: 'Penerimaan Barang' },
-                { id: 'Pengiriman Pesanan', name: 'Pengiriman Pesanan' },
-                { id: 'Penyesuaian Persediaan', name: 'Penyesuaian Persediaan' }
-            ],
             formData : [],
             voucherInfo: {
                 referenceNo: '',
                 transactionDate: '',
                 description: '',
-                department: '',
-                reference: '',
+                department: ''
             },
             currentAmount: 0,
         }
@@ -197,6 +182,59 @@ export default {
                 return account.children.every(child => !child.children)
             })
         },
+        async fetchGeneralLedgerByReferenceNo() {
+            const referenceNo = decodeURIComponent(this.$route.params.referenceNo)
+            this.referenceNo = referenceNo
+
+            this.$api.get(`${import.meta.env.VITE_API_URL}/general-ledger/adjustment/?ref=${encodeURIComponent(referenceNo)}`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                }
+            })
+            .then(response => {
+                if (response.data.status) {
+                    if (response.data.generalLedgers.length > 0) {
+                        const firstRow = response.data.generalLedgers[0]
+                        this.voucherInfo = {
+                            referenceNo: firstRow.reference_no,
+                            transactionDate: firstRow.transaction_date,
+                            description: firstRow.description,
+                            department: firstRow.department,
+                        }
+                    }
+
+                    this.generalLedgers = response.data.generalLedgers
+
+                    this.formData = response.data.generalLedgers.map(item => ({
+                        id: item.id,
+                        periode: this.getPeriodeFromDate(this.voucherInfo.transactionDate),
+                        department: item.department,
+                        account: this.filteredAccounts.find(acc => acc.id === item.account_id) || null,
+                        amount: item.amount,
+                        transaction_date: this.voucherInfo.transactionDate,
+                        reference_no: this.voucherInfo.referenceNo,
+                        description: this.voucherInfo.description,
+                    }))
+                }
+            })
+            .catch(error => {
+                console.error(error)
+
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Fetching Data Gagal',
+                    detail: error.response ? error.response.data.message : 'An error occurred during fetch data.',
+                    life: 3000
+                })
+
+                this.$nextTick(() => {
+                    document.activeElement.blur()
+                })
+            })
+            .finally(() => {
+                this.isLoading = false
+            })
+        },
         handleAddNewRow() {
             const newId = Date.now()
             const newRow = {
@@ -227,8 +265,6 @@ export default {
                     ...original,
                     ...updateRow,
                 })
-
-                this.editingRows = this.editingRows.filter(id => id !== updateRow.id)
             }
         },
         handleDeleteRow(id) {
@@ -251,11 +287,11 @@ export default {
                 )
             })
 
-            if (hasEmptyRow || this.generalLedgers.length === 0) {
+            if (hasEmptyRow) {
                 this.$toast.add({
                     severity: 'error',
                     summary: 'Validasi Gagal',
-                    detail: 'Terdapat baris kosong, mohon diisi atau dihapus.',
+                    detail: 'Terdapat baris atau jumlah yang kosong, mohon diisi atau dihapus.',
                     life: 3000
                 })
                 return
@@ -287,19 +323,20 @@ export default {
 
             this.formData = this.generalLedgers.map(row => ({
                 id: row.id,
-                transaction_date: this.formatDate(this.voucherInfo.transactionDate),
-                import_id: null,
+                import_id: row.import_id,
                 periode: periode,
-                department: this.voucherInfo.department,
                 account_id: row.account_id,
                 amount: Number(row.amount),
+                reference: row.reference,
                 transaction_type: Number(row.transaction_type),
+                transaction_date: this.voucherInfo.transactionDate,
                 reference_no: this.voucherInfo.referenceNo,
-                reference: this.voucherInfo.reference,
+                department: this.voucherInfo.department,
                 description: this.voucherInfo.description,
             }))
 
-            this.$api.post(`${import.meta.env.VITE_API_URL}/general-ledger/entry`, {
+            this.$api.post(`${import.meta.env.VITE_API_URL}/general-ledger/adjustment`, {
+
                 data: this.formData
             }, {
                 headers: {
@@ -333,19 +370,13 @@ export default {
             const month = String(date.getMonth() + 1).padStart(2, '0')
             return `${year}${month}`
         },
-        formatDate(dateObj) {
-            if (!(dateObj instanceof Date)) return ''
-            const year = dateObj.getFullYear()
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-            const day = String(dateObj.getDate()).padStart(2, '0')
-            return `${year}-${month}-${day}`
-        },
         getFieldError(field) {
             return this.fieldErrors?.[field]?.[0] || null
         }
     },
     mounted() {
         this.fetchAccounts()
+        this.fetchGeneralLedgerByReferenceNo()
     },
     computed: {
         totalDebit() {

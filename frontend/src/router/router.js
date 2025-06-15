@@ -6,9 +6,11 @@ import Dashboard from '../views/Dashboard.vue'
 import Account from '../views/Account.vue'
 import AccountType from '../views/AccountType.vue'
 import GeneralLedgerImport from '../views/GeneralLedgerImport.vue'
+import GeneralLedgerList from '../views/GeneralLedgerList.vue'
 import GeneralLedgerEntry from '../views/GeneralLedgerEntry.vue'
-import GeneralLedgerCreate from '../views/GeneralLedgerCreate.vue'
+import GeneralLedgerAdjustment from '../views/GeneralLedgerAdjustment.vue'
 import GeneralLedgerDetail from '../views/GeneralLedgerDetail.vue'
+import GeneralLedgerVoucherDetail from '../views/GeneralLedgerVoucherDetail.vue'
 import BalanceSheetStandard from '../views/BalanceSheetStandard.vue'
 import IncomeStatement from '../views/IncomeStatement.vue'
 import Ledger from '../views/Ledger.vue'
@@ -32,29 +34,39 @@ const routes = [
         meta: { title: 'Dashboard', requiresAuth: true }
     },
     {
-        path: '/jurnal-umum',
+        path: '/jurnal',
         component: GeneralLedgerLayout,
         meta: { requiresAuth: true },
         children: [
             {
-                path: 'daftar',
-                component: GeneralLedgerEntry,
-                meta: { title: 'Daftar Jurnal Umum' }
+                path: 'daftar-import',
+                component: GeneralLedgerList,
+                meta: { title: 'Daftar Import Jurnal' }
             },
             {
-                path: 'buat',
-                component: GeneralLedgerCreate,
-                meta: { title: 'Buat Jurnal Umum' }
+                path: 'entri',
+                component: GeneralLedgerEntry,
+                meta: { title: 'Entri Jurnal' }
             },
             {
                 path: 'import',
                 component: GeneralLedgerImport,
-                meta: { title: 'Import Jurnal Umum' }
+                meta: { title: 'Import Jurnal' }
             },
             {
                 path: 'detail/:importNo',
                 component: GeneralLedgerDetail,
-                meta: { title: 'Detail Jurnal Umum' }
+                meta: { title: 'Detail Jurnal' }
+            },
+            {
+                path: 'daftar-bukti',
+                component: GeneralLedgerVoucherDetail,
+                meta: { title: 'Daftar Bukti Jurnal' }
+            },
+            {
+                path: 'koreksi/:referenceNo',
+                component: GeneralLedgerAdjustment,
+                meta: { title: 'Koreksi Jurnal' }
             },
         ]
     },

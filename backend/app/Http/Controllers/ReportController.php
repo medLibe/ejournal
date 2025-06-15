@@ -114,7 +114,7 @@ class ReportController extends Controller
     public function getAccounts()
     {
         try {
-            $accounts = $this->account->getSElectableAccounts();
+            $accounts = $this->account->getSelectableAccounts();
 
             return response()->json([
                 'status'    => true,

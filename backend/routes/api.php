@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountTypeController;
+use App\Http\Controllers\GeneralLedgerAdjustmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\GeneralLedgerController;
+use App\Http\Controllers\GeneralLedgerImportController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\MultiGroupDatabase;
+use App\Models\GeneralLedgerImport;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
@@ -37,10 +40,19 @@ Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', Mul
 
     Route::prefix('general-ledger')->controller(GeneralLedgerController::class)->group(function() {
         Route::get('/', 'getGeneralLedgerImports');
-        Route::get('/detail/{importNo}', 'getGeneralLedgers');
+        Route::get('/voucher-detail', 'getGeneralLedgers');
+        Route::get('/voucher-detail/print', 'printGeneralLedgersVoucherList');
+        Route::get('/detail/{importNo}', 'getGeneralLedgersByImportNo');
+        Route::get('/adjustment', 'getGeneralLedgerByReferenceNo');
+    });
+
+    Route::prefix('general-ledger')->controller(GeneralLedgerAdjustmentController::class)->group(function() {
+        Route::post('/adjustment', 'adjustmentGeneralLedgerByReferenceNo');
+        Route::post('/entry', 'adjustmentEntryGeneralLEdger');
+    });
+
+    Route::prefix('general-ledger')->controller(GeneralLedgerImportController::class)->group(function() {
         Route::post('/', 'storeGeneralLedger');
-        Route::get('/pdf', 'printGeneralLedgers');
-        Route::get('/excel', 'exportGeneralLedgers');
         Route::post('/import', 'importGeneralLedger');
     });
 

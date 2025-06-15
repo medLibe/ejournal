@@ -113,7 +113,7 @@ export default {
             formData: {
                 startDate: null,
                 endDate: null,
-            }
+            },
         }
     },
     methods: {
@@ -168,7 +168,6 @@ export default {
 
             this.showLoader()
 
-            
             this.$api.get(`${import.meta.env.VITE_API_URL}/report/ledger`, {
                     params,
                     headers: {

@@ -137,9 +137,8 @@ export default {
         },
         // on submit action
         async onSubmitFilter() {
-            const datePeriode = this.formData.datePeriode
-                ? new Date(this.formData.datePeriode).toISOString().split('T')[0] : null
-
+            const datePeriode = this.formatDate(this.formData.datePeriode)
+            
             const params = {
                 datePeriode: datePeriode,
                 viewTotal: this.formData.viewTotal,
@@ -229,6 +228,14 @@ export default {
                 this.formData.viewChildren = false
             }
         },
+        formatDate(date) {
+            if (!date) return null
+            const d = new Date(date)
+            const year = d.getFullYear()
+            const month = (d.getMonth() + 1).toString().padStart(2, '0')
+            const day = d.getDate().toString().padStart(2, '0')
+            return `${year}-${month}-${day}` // YYYY-MM-DD
+        }
     },
     watch: {
         'formData.viewTotal': function(newValue) {

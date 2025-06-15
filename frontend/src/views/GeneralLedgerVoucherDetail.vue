@@ -4,8 +4,23 @@
 
         <!-- data general ledger -->
         <div class="bg-white p-3 mt-5 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-4">
+                <!-- filter modal -->
+                <div class="grid grid-cols-2 gap-2">
+                    <Button 
+                        severity="primary"
+                        icon="pi pi-filter" 
+                        label="Filter" 
+                        @click="filterGeneralLedgerVoucherDetailDialog = true"
+                    />
+                    <Button 
+                        severity="primary"
+                        icon="pi pi-print" 
+                        label="Print"
+                        @click="handlePrint"
+                    />
+                </div>
 
-            <div class="flex justify-end items-center mb-4">
                 <!-- search -->
                 <input
                     v-model="searchQuery" 
@@ -28,7 +43,7 @@
                         {{ formatDate(slotProps.data.transaction_date) }}
                     </template>
                 </Column>
-                <Column header="Nomor Sumber">
+                 <Column header="Nomor Sumber">
                     <template #body="slotProps">
                         <a
                             :href="`/jurnal/koreksi/${encodeURIComponent(slotProps.data.reference_no)}`"
@@ -58,6 +73,13 @@
                     </div>
                 </template>
             </DataTable>
+
+            <!-- modal filter -->
+            <ModalFilterGeneralLedgerVoucherDetail
+                :isVisible="filterGeneralLedgerVoucherDetailDialog"
+                @update:isVisible="filterGeneralLedgerVoucherDetailDialog = $event"
+                @submitFilter="onFilterSubmit"
+            />
         </div>
     </main>
 </template>
@@ -68,15 +90,19 @@ import DataTable from 'primevue/datatable'
 import Row from 'primevue/row'
 import Column from 'primevue/column'
 import ColumnGroup from 'primevue/columngroup'
+import Button from 'primevue/button'
+import ModalFilterGeneralLedgerVoucherDetail from '../components/modal/ModalFilterGeneralLedgerVoucherDetail.vue'
 
 export default {
-    name: 'GeneralLedgerDetail',
+    name: 'GeneralLedgerVoucherDetail',
     components: {
         Breadcrumb,
         DataTable,
         Row,
         Column,
-        ColumnGroup
+        ColumnGroup,
+        Button,
+        ModalFilterGeneralLedgerVoucherDetail,
     },
     inject: ['showLoader', 'hideLoader'],
     data() {
@@ -86,8 +112,9 @@ export default {
             totalRecords: 0,
             totalAmount: 0,
             isLoading: false,
+            filterGeneralLedgerVoucherDetailDialog: false,
             searchQuery: '',
-               pagination: {
+            pagination: {
                 page: 1,
                 perPage: 50
             },
@@ -102,16 +129,25 @@ export default {
             this.pagination.page = event.page + 1 // PrimeVue 0-based page
             this.fetchGeneralLedger()
         },
+        onFilterSubmit(payload) {
+            this.filters.startDate = payload.startDate
+            this.filters.endDate = payload.endDate
+            this.fetchGeneralLedger()
+        },
         async fetchGeneralLedger() {
+            if (!this.filters.startDate || !this.filters.endDate) return
+
             this.isLoading = true
 
             const params = {
+                startDate: this.filters.startDate,
+                endDate: this.filters.endDate,
                 page: this.pagination.page,
                 perPage: this.pagination.perPage,
                 search: this.searchQuery.trim() || undefined
             }
 
-            await this.$api.get(`${import.meta.env.VITE_API_URL}/general-ledger/detail/${this.importNo}`, {
+            await this.$api.get(`${import.meta.env.VITE_API_URL}/general-ledger/voucher-detail`, {
                 params,
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('accessToken')}`
@@ -141,6 +177,51 @@ export default {
                 this.isLoading = false
             })
         },
+        async handlePrint() {
+            if (!this.filters.startDate || !this.filters.endDate) {
+                this.$toast.add({
+                    severity: 'warn',
+                    summary: 'Filter belum lengkap',
+                    detail: 'Silakan pilih tanggal mulai dan akhir terlebih dahulu.',
+                    life: 3000
+                })
+                return
+            }
+
+            const params = {
+                startDate: this.filters.startDate,
+                endDate: this.filters.endDate
+            }
+
+            try {
+                this.showLoader()
+                const response = await this.$api.get(
+                    `${import.meta.env.VITE_API_URL}/general-ledger/voucher-detail/print`,
+                    {
+                        params,
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                        },
+                        responseType: 'blob'
+                    }
+                )
+
+                const blob = new Blob([response.data], { type: response.headers['content-type'] })
+                const fileUrl = window.URL.createObjectURL(blob)
+                window.open(fileUrl, '_blank')
+
+            } catch (error) {
+                console.error(error)
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Print Gagal',
+                    detail: 'Terjadi kesalahan saat mencetak data.',
+                    life: 3000
+                })
+            } finally {
+                this.hideLoader()
+            }
+        },
         formatDate(rowData) {
             if (!rowData) return ''
             try {
@@ -161,9 +242,6 @@ export default {
                 currency: "IDR",
             }).format(value || 0)
         },
-    },
-    mounted() {
-        this.fetchGeneralLedger()
     },
     watch: {
         searchQuery: {

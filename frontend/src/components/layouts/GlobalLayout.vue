@@ -60,9 +60,10 @@ export default {
                     icon: ['fas', 'book'],
                     isOpen: true,
                     submenu: [
-                        { label: "Daftar Jurnal Umum", link: "/jurnal-umum/daftar" },
-                        // { label: "Buat Jurnal Umum", link: "/jurnal-umum/buat" },
-                        { label: "Import Jurnal Umum", link: "/jurnal-umum/import" },
+                        { label: "Daftar Import Jurnal", link: "/jurnal/daftar-import" },
+                        { label: "Daftar Bukti Jurnal", link: "/jurnal/daftar-bukti" },
+                        { label: "Import Jurnal", link: "/jurnal/import" },
+                        { label: "Entri Jurnal", link: "/jurnal/entri" },
                     ]
                 },
                 {

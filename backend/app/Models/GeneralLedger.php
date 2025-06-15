@@ -5,6 +5,7 @@ namespace App\Models;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class GeneralLedger extends Model
 {
@@ -26,26 +27,89 @@ class GeneralLedger extends Model
         return $this->belongsTo(Account::class);
     }
 
-    public static function getGeneralLedgers($importId)
+    public static function getGeneralLedgers($params = [], $withTotalAmount = false)
     {
         try {
-            $query = self::where('import_id', $importId)
-                        ->with('account')
-                        ->orderBy('transaction_date', 'asc');
+            $startDate = $params['start_date'] ?? null;
+            $endDate   = $params['end_date'] ?? null;
+            $importId  = $params['import_id'] ?? null;
+            $perPage   = $params['perPage'] ?? 50;
+            $page      = $params['page'] ?? 1;
+            $search    = $params['search'] ?? null;
 
-            $generalLedgers = $query->get();
+            $baseQuery = DB::table('general_ledgers as gl')
+                ->select([
+                    'gl.reference_no',
+                    'gl.reference',
+                    DB::raw("MAX(gl.transaction_date) as transaction_date"),
+                    DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_debit"),
+                    DB::raw("SUM(CASE WHEN gl.transaction_type = 2 THEN gl.amount ELSE 0 END) AS total_credit"),
+                    DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_amount")
+                ])
+                ->groupBy('gl.reference_no', 'gl.reference');
 
-            $generalLedgers->transform(function ($item) {
-                $item->account_code = $item->account ? $item->account->account_code : null;
-                $item->account_name = $item->account ? $item->account->account_name : null;
+            // filter date or import id
+            if ($startDate && $endDate) {
+                $baseQuery->whereBetween('gl.transaction_date', [$startDate, $endDate]);
+            } elseif ($importId) {
+                $baseQuery->where('gl.import_id', $importId);
+            } else {
+                throw new InvalidArgumentException('Parameter tidak valid. Harus menyertakan start_date & end_date atau import_id.');
+            }
 
-                return $item;
-            });
+            // filter search if exist
+            if (!empty($search)) {
+                $baseQuery->where(function($q) use ($search) {
+                    $q->where('gl.reference_no', 'like', "%{$search}%")
+                      ->orWhere('gl.reference', 'like', "%{$search}%")
+                      ->orWhere('gl.transaction_date', 'like', "%{$search}%");
+                });
+            }
 
-            return $generalLedgers;
+            // order by
+            $baseQuery->orderBy(DB::raw('MAX(gl.transaction_date)'), 'desc');
+
+            // get pagination result
+            $paginated = (clone $baseQuery)->paginate($perPage, ['*'], 'page', $page);
+
+            // count total amount all of filter result, not only active page
+            $totalAmount = 0;
+
+            if ($withTotalAmount) {
+                $totalAmount = (clone $baseQuery)->get()->sum('total_amount');
+            }
+
+            return [
+                'data'          => $paginated,
+                'total_amount'  => $totalAmount,
+            ];
         } catch (Exception $error) {
             throw new Exception($error->getMessage());
         }
+    }
+
+    public static function getGeneralLedgersForPrint($params = [])
+    {
+        $startDate = $params['start_date'] ?? null;
+        $endDate   = $params['end_date'] ?? null;
+
+        if (!$startDate || !$endDate) {
+            throw new InvalidArgumentException('Tanggal tidak valid.');
+        }
+
+        return DB::table('general_ledgers as gl')
+            ->select([
+                'gl.reference_no',
+                'gl.reference',
+                DB::raw("MAX(gl.transaction_date) as transaction_date"),
+                DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_debit"),
+                DB::raw("SUM(CASE WHEN gl.transaction_type = 2 THEN gl.amount ELSE 0 END) AS total_credit"),
+                DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_amount")
+            ])
+            ->whereBetween('gl.transaction_date', [$startDate, $endDate])
+            ->groupBy('gl.reference_no', 'gl.reference')
+            ->orderBy(DB::raw('MAX(gl.transaction_date)'), 'desc')
+            ->get();
     }
 
     public function getLedgers($account_id, $start_date, $end_date)

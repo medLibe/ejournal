@@ -92,6 +92,7 @@ class Account extends Model
             ->map(function ($account) {
                 return [
                     'id'            => $account->id,
+                    'account_code'  => $account->account_code,
                     'account_name'  => $account->account_name,
                 ];
             })

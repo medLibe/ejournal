@@ -11,8 +11,12 @@ The dashboard serves as the main overview page of the application. It provides u
 This section allows users to manage general journal entries, which are the fundamental records in accounting. You can view, edit, or delete journal entries as necessary.
 
 #### **Sub-features:**
-- **Journal List**: View all general journal entries.
+- **Journal Entry**: Manually input new journal transactions directly from the app without importing files.
+- **Journal Voucher List**: View all journal vouchers (entries), whether imported or manually entered, with filter options for start and end date.
+- **Journal List**: See a bundled list of imported journals.
+- **Journal Detail**: Drill down into each imported journal bundle for transaction details.
 - **Import General Journals**: Easily import journal entries from external sources (e.g., CSV, Excel).
+- **Journal Adjustment / Correction**: Menu for correcting or adjusting existing journal entries, accessible from the Journal Detail view (via the "Adjustment" button).
 
 ### 3. **Master Data**
 The Master Data feature allows users to manage core data used across the system, such as accounts, account types, and other critical financial parameters.
@@ -28,7 +32,7 @@ The Reports section provides various financial reports to help users track and a
 #### **Sub-features:**
 - **Balance Sheet (Neraca)**: View a detailed balance sheet that summarizes the financial position of the organization at a specific point in time.
 - **General Ledger (Buku Besar)**: View detailed transaction history for each account.
-- **Profit and Loss (Laba Rugi)**: Generate a profit and loss statement to analyze revenue, expenses, and net profit over a specific period.
+- **Profit and Loss / Income Statement (Laba Rugi)**: Generate a profit and loss statement to analyze revenue, expenses, and net profit over a specific period.
 
 ---
 
