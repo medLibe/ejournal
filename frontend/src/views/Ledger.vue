@@ -2,7 +2,7 @@
     <Breadcrumb/>
 
     <main class="mt-8">
-        <div class="bg-white p-3 max-w-4xl mx-auto shadow max-h-[80vh] overflow-auto mt-5 border border-gray-200 rounded-lg">
+        <div class="bg-white p-12 w-full shadow max-h-full overflow-auto mt-5 border border-gray-200 rounded-lg">
             <!-- button -->
            <div class="flex gap-1">
                 <Button 

@@ -58,7 +58,7 @@ export default {
                 {
                     label: "Jurnal Umum",
                     icon: ['fas', 'book'],
-                    isOpen: true,
+                    isOpen: false,
                     submenu: [
                         { label: "Daftar Import Jurnal", link: "/jurnal/daftar-import" },
                         { label: "Daftar Bukti Jurnal", link: "/jurnal/daftar-bukti" },
@@ -69,19 +69,22 @@ export default {
                 {
                     label: "Master Data",
                     icon: ['fas', 'user-cog'],
-                    isOpen: true,
+                    isOpen: false,
                     submenu: [
-                        { label: "Daftar Akun", link: "/master-data/daftar-akun" },
                         { label: "Tipe Akun", link: "/master-data/tipe-akun" },
+                        { label: "Daftar Akun", link: "/master-data/daftar-akun" },
+                        { label: "Daftar Perusahaan", link: "/master-data/daftar-perusahaan" },
                     ]
                 },
                 {
                     label: "Laporan",
                     icon: ['fas', 'file-invoice-dollar'],
-                    isOpen: true,
+                    isOpen: false,
                     submenu: [
                         { label: "Neraca", link: "/laporan-keuangan/neraca" },
+                        { label: "Neraca Saldo", link: "/laporan-keuangan/neraca-saldo" },
                         { label: "Buku Besar", link: "/laporan-keuangan/buku-besar" },
+                        { label: "Buku Besar Rinci", link: "/laporan-keuangan/buku-besar-rinci" },
                         { label: "Laba Rugi", link: "/laporan-keuangan/laba-rugi" },
                     ]
                 },
@@ -96,7 +99,14 @@ export default {
             this.isDropdownVisible = isVisible
         },
         toggleSubmenu(index) {
-            this.menuItems[index].isOpen = !this.menuItems[index].isOpen
+            // this.menuItems[index].isOpen = !this.menuItems[index].isOpen
+            this.menuItems.forEach((menu, i) => {
+                if (i === index) {
+                    menu.isOpen = !menu.isOpen
+                } else {
+                    menu.isOpen = false
+                }
+            })
         },
         expandSidebarOnHover() {
             if (!this.isSidebarOpen) {
@@ -111,7 +121,8 @@ export default {
         openActiveSubmenu() {
             this.menuItems.forEach(menu => {
                 if (menu.submenu) {
-                    menu.isOpen = menu.isOpen ?? this.isActiveSubmenu(menu.submenu)
+                    // menu.isOpen = menu.isOpen ?? this.isActiveSubmenu(menu.submenu)
+                    menu.isOpen = this.isActiveSubmenu(menu.submenu)
                 } else {
                     menu.isOpen = false
                 }

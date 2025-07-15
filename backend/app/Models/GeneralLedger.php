@@ -183,6 +183,7 @@ class GeneralLedger extends Model
                 ->whereBetween('transaction_date', [$start_date, $end_date])
                 ->join('accounts', 'general_ledgers.account_id', '=', 'accounts.id')
                 ->orderBy('general_ledgers.transaction_date', 'asc')
+                ->orderBy('general_ledgers.reference_no', 'asc')
                 ->get([
                     'general_ledgers.id',
                     'general_ledgers.transaction_date',
@@ -229,5 +230,55 @@ class GeneralLedger extends Model
         }
 
         return $formattedTransactions;
+    }
+
+    public function countAmountGeneralLedger($year, $month)
+    {
+        return DB::table('general_ledgers as gl')
+                ->where('transaction_type', 1)
+                ->whereYear('gl.transaction_date', 2025)
+                ->whereMonth('gl.transaction_date', 01)
+                ->selectRaw('sum(amount) as total_amount')
+                ->first();
+    }
+
+    public function countAmountGeneralLedgerByParentAccount($parentName, $year, $month)
+    {
+        $parentId = DB::table('accounts')
+                    ->where('account_type_id', 1)
+                    ->where('account_name', strtoupper($parentName))
+                    ->value('account_code');
+
+        if (!$parentId) return $parentId;
+
+        $childIds = DB::table('accounts')->where('parent_id', $parentId)->pluck('id');
+
+        return DB::table('general_ledgers')
+                ->whereIn('account_id', $childIds)
+                ->whereYear('transaction_date', 2025)
+                ->whereMonth('transaction_date', 01)
+                ->where('transaction_type', 1)
+                ->sum('amount');
+    }
+
+    public function countAmountGeneralLedgerByNominalAccount($accountGroupId, $year, $month)
+    {
+        $accountTypeIds = DB::table('account_types')
+                    ->where('account_group_id', $accountGroupId)
+                    ->pluck('id');
+
+        if ($accountTypeIds->isEmpty()) return 0;
+
+        $accountIds = DB::table('accounts')
+                        ->whereIn('account_type_id', $accountTypeIds)
+                        ->pluck('id');
+
+        if ($accountIds->isEmpty()) return 0;
+
+        return DB::table('general_ledgers')
+                ->whereIn('account_id', $accountIds)
+                ->whereYear('transaction_date', 2025)
+                ->whereMonth('transaction_date', 01)
+                ->sum('amount');
     }
 }

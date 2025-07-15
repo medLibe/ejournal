@@ -133,6 +133,13 @@ class PeriodeBalance extends Model
             return $account->accountType->accountGroup->account_group_name ?? 'Tanpa Kelompok';
         });
 
+        $customOrder = [1, 3, 2];
+        $groupedData = $groupedData->sortBy(function ($group) use ($customOrder) {
+            $groupId = $group->first()->accountType->accountGroup->id ?? 999;
+            $index = array_search($groupId, $customOrder);
+            return $index !== false ? $index : 999;
+        });
+
         // format result
         return $groupedData->map(function ($group) use ($view_children) {
             $filteredAccounts = filterZeroBalance($group, $view_children);
@@ -154,7 +161,6 @@ class PeriodeBalance extends Model
 
                     return [
                         'account_type_name' => $typeName,
-                        'total_balance' => collect($filteredAccounts)->sum('balance'),
                         'accounts' => $filteredAccounts,
                     ];
                 })->filter()->values(),
@@ -187,6 +193,7 @@ class PeriodeBalance extends Model
                 ->select(
                     'ag.account_group_name',
                     'at.account_type_name',
+                    'at.id as account_type_id',
                     'a.id as account_id',
                     'a.account_name',
                     'a.account_code',
@@ -204,7 +211,7 @@ class PeriodeBalance extends Model
         $totalCost = 0;
 
         foreach ($rawBalances as $row) {
-            $group = $row->account_group_name;
+            $group = $row->account_type_id == 11 ? 'Harga Pokok Penjualan' : $row->account_group_name;
             $type = $row->account_type_name;
             $amount = floatval($row->total_balance);
     
@@ -213,32 +220,50 @@ class PeriodeBalance extends Model
             }
 
             // find index type, if not exist, add in
-            $typeIndex = array_search($type, array_column($hierarchicalData[$group], 'account_type_name'));
-            if($typeIndex === false) {
+            // $typeIndex = array_search($type, array_column($hierarchicalData[$group], 'account_type_name'));
+            // if($typeIndex === false) {
+            //     $hierarchicalData[$group][] = [
+            //         'account_type_name' => $type,
+            //         'total_balance' => 0,
+            //         'accounts' => []
+            //     ];
+            //     $typeIndex = array_key_last($hierarchicalData[$group]);
+            // }
+            $typeKey = array_search($type, array_map(function ($item) {
+                return $item['account_type_name'];
+            }, $hierarchicalData[$group] ?? []));
+
+            if ($typeKey === false) {
                 $hierarchicalData[$group][] = [
                     'account_type_name' => $type,
                     'total_balance' => 0,
                     'accounts' => []
                 ];
-                $typeIndex = array_key_last($hierarchicalData[$group]);
+                $typeKey = array_key_last($hierarchicalData[$group]);
             }
 
             if ($amount != 0) {
-                // add account into account_type
-                $hierarchicalData[$group][$typeIndex]['accounts'][] = [
-                    'account_id' => $row->account_id,
-                    'account_name' => $row->account_name,
-                    'account_code' => $row->account_code,
-                    'total_balance' => $amount
-                ];
+                // avoid duplicate data HPP
+                $isHppMainAccount = $row->account_type_id == 11 &&
+                                    $row->account_name == $row->account_type_name;
+
+                // if HPP account equal with HPP account type -> skip from accounts[]
+                if (!$isHppMainAccount) {
+                    $hierarchicalData[$group][$typeKey]['accounts'][] = [
+                        'account_id' => $row->account_id,
+                        'account_name' => $row->account_name,
+                        'account_code' => $row->account_code,
+                        'total_balance' => $amount
+                    ];
+                }
 
                 // add total_balance into account_type
-                $hierarchicalData[$group][$typeIndex]['total_balance'] += $amount;
+                $hierarchicalData[$group][$typeKey]['total_balance'] += $amount;
 
                 // count summary
                 if ($group === "Pendapatan") {
                     $totalIncome += $amount;
-                } elseif ($group === "Beban (Biaya)") {
+                } elseif ($group === "Beban (Biaya)" || $group === "Harga Pokok Penjualan") {
                     $totalCost += $amount;
                 }
             }
@@ -258,11 +283,25 @@ class PeriodeBalance extends Model
             }
         }
 
-        unset ($types); //clean ref
+        // add: set order for beban and pendapatan
+        $orderedData = [];
+        $priorityOrder = ['Pendapatan', 'Harga Pokok Penjualan', 'Beban (Biaya)'];
+
+        foreach ($priorityOrder as $groupName) {
+            if (isset($hierarchicalData[$groupName])) {
+                $orderedData[$groupName] = $hierarchicalData[$groupName];
+            }
+        }
+
+         foreach ($hierarchicalData as $groupName => $value) {
+            if (!in_array($groupName, $priorityOrder)) {
+                $orderedData[$groupName] = $value;
+            }
+        }
 
         return [
             "status" => true,
-            "data" => $hierarchicalData,
+            "data" => $orderedData,
             "summary" => [
                 "total_income"      => $totalIncome,
                 "total_cost"        => $totalCost,

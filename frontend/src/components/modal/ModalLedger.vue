@@ -49,7 +49,7 @@
             <div class="mb-4">
                 <FloatLabel variant="on">
                     <Select 
-                        editable
+                        filter
                         v-model="formData.selectedAccount"
                         :options="filteredAccounts" 
                         optionLabel="account_name" fluid
@@ -161,7 +161,7 @@ export default {
                 return new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().split("T")[0]
             }
             const params = {
-                accountId: this.formData.selectedAccount.id,
+                accountId: this.formData.selectedAccount?.id || null,
                 startDate: formatDate(this.formData.startDate),
                 endDate: formatDate(this.formData.endDate),
             }
@@ -189,7 +189,14 @@ export default {
 
                         // emit data
                         this.$emit('fetchLedgers', response.data.data)
-                        this.$emit('update:isVisible', false)
+
+                        this.formData = {
+                            startDate: null,
+                            endDate: null,
+                            accountId: null,
+                        }
+
+                        this.onCancel()
                         
                         this.$nextTick(() => {
                             document.activeElement.blur()

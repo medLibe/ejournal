@@ -2,20 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
+use App\Models\GeneralLedger;
 use App\Models\User;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
     protected $user;
+    protected $generalLedger;
+    protected $account;
 
     public function __construct()
     {
         $this->user = new User();
+        $this->generalLedger = new GeneralLedger();
+        $this->account = new Account();
     }
 
     public function login(Request $request)
@@ -190,6 +198,40 @@ class UserController extends Controller
             return response()->json([
                 'status'    => true,
                 'message'   => 'User berhasil diperbarui.'
+            ]);
+        } catch (Exception $error) {
+            return response()->json([
+                'status'    => false,
+                'message'   => $error->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getDashboard()
+    {
+        try {
+            $now = Carbon::now();
+
+            $generalLedger = $this->generalLedger->countAmountGeneralLedger($now->year, $now->month);
+
+            $revenue = $this->generalLedger->countAmountGeneralLedgerByNominalAccount(4, $now->year, $now->month);
+            $expense = $this->generalLedger->countAmountGeneralLedgerByNominalAccount(5, $now->year, $now->month);
+            $cash = $this->generalLedger->countAmountGeneralLedgerByParentAccount('KAS', $now->year, $now->month);
+            $bank = $this->generalLedger->countAmountGeneralLedgerByParentAccount('BANK', $now->year, $now->month);
+
+            $activeAccount = $this->account->where('is_active', true)->count();
+
+            $currentDB = DB::connection()->getDatabaseName();
+            $department = strtoupper(str_replace('ejournal_', '', $currentDB));
+
+            return response()->json([
+                'active_account'    => $activeAccount,
+                'revenue'           => (float) $revenue,
+                'expense'           => (float) $expense,
+                'cash'              => (float) $cash,
+                'bank'              => (float) $bank,
+                'general_ledger'    => (float) $generalLedger->total_amount,
+                'department'        => $department,
             ]);
         } catch (Exception $error) {
             return response()->json([

@@ -2,7 +2,7 @@
     <Breadcrumb/>
 
     <main class="mt-8">
-        <div class="bg-white p-3 max-w-4xl mx-auto shadow max-h-[80vh] overflow-auto mt-5 border border-gray-200 rounded-lg">
+        <div class="bg-white p-12 w-full shadow max-h-full overflow-auto mt-5 border border-gray-200 rounded-lg">
             <!-- button -->
            <div class="flex gap-1">
                 <Button 
@@ -38,7 +38,7 @@
                             <!-- loop account type -->
                             <template v-for="(type, typeIndex) in group.account_types" :key="typeIndex">
                                 <tr>
-                                    <td class="pl-10 px-4 py-2 border border-gray-200">
+                                    <td class="pl-10 font-bold px-4 py-2 border border-gray-200">
                                         {{ type.account_type_name || 'No Type Name' }}
                                     </td>
                                     <td class="px-4 py-2 border border-gray-200 text-right"
@@ -151,7 +151,7 @@ export default {
             }
         },
         formatBalance(value) {
-            if (value === null || value === undefined) return '-'
+            if (value === null || value === undefined) return ' '
             return new Intl.NumberFormat('id-ID', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 

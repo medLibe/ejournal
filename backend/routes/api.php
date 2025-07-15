@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountTypeController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\GeneralLedgerAdjustmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\GeneralLedgerController;
@@ -17,6 +18,7 @@ Route::post('/login', [UserController::class, 'login'])->middleware(MultiGroupDa
 Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', MultiGroupDatabase::class])
 ->group(function() {
     Route::get('/logout', [UserController::class, 'logout']);
+    Route::get('/dashboard', [UserController::class, 'getDashboard']);
     Route::prefix('user')->controller(UserController::class)->group(function() {
         Route::get('/', 'getUsers');
         Route::get('/{userId}', 'getUserById');
@@ -26,6 +28,12 @@ Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', Mul
 
     Route::prefix('account-type')->controller(AccountTypeController::class)->group(function() {
         Route::get('/', 'getAccountTypes');
+    });
+
+    Route::prefix('company')->controller(CompanyController::class)->group(function() {
+        Route::get('/', 'getCompanies');
+        Route::post('/', 'storeCompany');
+        Route::delete('/{companyId}', 'deleteCompany');
     });
 
     Route::prefix('account')->controller(AccountController::class)->group(function() {

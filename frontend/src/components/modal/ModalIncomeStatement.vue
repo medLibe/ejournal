@@ -64,7 +64,7 @@
                     $form.division.error?.message }}</Message>
             </div>
 
-            <div class="card flex flex-col gap-4">
+            <!-- <div class="card flex flex-col gap-4">
                 <label for="">Parameter:</label>
                 <div class="flex items-center gap-2">
                     <Checkbox 
@@ -75,7 +75,7 @@
                         disabled />
                     <label for="view_total">Tampilkan Total</label>
                 </div>
-                <!-- <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2">
                     <Checkbox 
                         binary 
                         v-model="formData.viewParent" 
@@ -92,8 +92,8 @@
                         @change="handleChildrenChange"
                         :disabled="formData.viewTotal" />
                     <label for="view_children">Tampilkan Anak</label>
-                </div> -->
-            </div>
+                </div>
+            </div> -->
         </Form>
 
         <template #footer>
@@ -212,7 +212,7 @@ export default {
                 viewTotal: this.formData.viewTotal,
                 viewParent: this.formData.viewParent,
                 viewChildren: this.formData.viewChildren,
-                division: this.formData.division.value,
+                division: this.formData.division?.value ?? null,
             }
 
             this.showLoader()
@@ -245,6 +245,13 @@ export default {
                             viewParent: this.formData.viewParent,
                             viewChildren: this.formData.viewChildren
                         })
+
+                        this.formData = {
+                            startDate: null,
+                            endDate: null,
+                        }
+
+                        this.onCancel()
                         
                         this.$nextTick(() => {
                             document.activeElement.blur()

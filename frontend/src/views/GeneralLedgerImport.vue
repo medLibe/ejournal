@@ -109,6 +109,7 @@ export default {
     data() {
         return {
             previewData: [],
+            previewTotalNominal: 0,
             rowsPerPage: 20,
             date: null,
             value: '',
@@ -139,6 +140,7 @@ export default {
                 .then(response => {
                     if (response.data.status) {
                         this.previewData = response.data.preview
+                        this.previewTotalNominal = response.data.total_nominal
                         this.responseMessage = {
                             severity: 'success',
                             detail: 'Import Data Berhasil, Preview Ditampilkan.',
@@ -252,10 +254,9 @@ export default {
     },
     computed: {
         totalNominal() {
-            return this.previewData.reduce((total, item) => {
-                const nominal = parseFloat(item.nominal)
-                return isNaN(nominal) ? total : total + nominal
-            }, 0)
+              return this.previewData.length > 0 && this.previewTotalNominal
+            ? this.previewTotalNominal
+            : 0
         }
     }
 }

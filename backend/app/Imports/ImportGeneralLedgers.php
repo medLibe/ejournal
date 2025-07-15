@@ -109,12 +109,15 @@ class ImportGeneralLedgers implements ToCollection, WithHeadingRow
         }
 
         // after processing all rows , check if total debit and credit are balance
-        if ($totalDebit !== $totalCredit) {
+        if (round($totalDebit, 2) !== round($totalCredit, 2)) {
             throw new Exception("Total Debit dan Kredit tidak balance! Total Debit: $totalDebit, Total Kredit: $totalCredit.", 409);
         }
 
         // return processed data if no errors
-        return $dataArray;
+        return [
+            'data'          => $dataArray,
+            'total_nominal' => $totalDebit,
+        ];
     }
 
     public function convertExcelSerialToDate($serial)

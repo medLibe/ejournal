@@ -176,6 +176,17 @@ export default {
                             viewParent: this.formData.viewParent,
                             viewChildren: this.formData.viewChildren
                         })
+
+                        // reset form
+                        this.formData = {
+                            datePeriode: null,
+                            viewTotal: false,
+                            viewParent: false,
+                            viewChildren: false
+                        }
+
+                        // Tutup modal
+                        this.onCancel()
                         
                         this.$nextTick(() => {
                             document.activeElement.blur()

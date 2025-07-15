@@ -17,6 +17,7 @@
     "@primevue/forms": "^4.2.5",
     "@primevue/themes": "^4.2.5",
     "axios": "^1.7.9",
+    "chart.js": "^4.5.0",
     "lodash": "^4.17.21",
     "md5": "^2.3.0",
     "primeicons": "^7.0.0",

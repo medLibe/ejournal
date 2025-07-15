@@ -140,11 +140,15 @@ class AccountController extends Controller
                 }
             }
             // remove duplication missing account types:
-            $missingAccountTypes = array_unique($missingAccountTypes);
-
-            if (!empty($missingAccountTypes)) {
-                throw new Exception("Tipe akun berikut tidak ditemukan: " . implode(', ', array_unique($missingAccountTypes)));
+            // $missingAccountTypes = array_unique($missingAccountTypes);
+            $missingAccountTypes = array_filter(array_unique($missingAccountTypes));
+            if (count($missingAccountTypes) > 0) {
+                throw new Exception("Tipe akun berikut tidak ditemukan: " . implode(', ', $missingAccountTypes));
             }
+
+            // if (!empty($missingAccountTypes)) {
+            //     throw new Exception("Tipe akun berikut tidak ditemukan: " . implode(', ', array_unique($missingAccountTypes)));
+            // }
 
             $parentAccounts = array_filter($accountsData, fn($row) => empty($row['sub_akun_dari']));
             $childAccounts = array_filter($accountsData, fn($row) => !empty($row['sub_akun_dari']));

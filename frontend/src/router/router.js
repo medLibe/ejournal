@@ -5,6 +5,7 @@ import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Account from '../views/Account.vue'
 import AccountType from '../views/AccountType.vue'
+import Company from '../views/Company.vue'
 import GeneralLedgerImport from '../views/GeneralLedgerImport.vue'
 import GeneralLedgerList from '../views/GeneralLedgerList.vue'
 import GeneralLedgerEntry from '../views/GeneralLedgerEntry.vue'
@@ -76,20 +77,20 @@ const routes = [
         meta: { requiresAuth: true },
         children: [
             {
+                path: 'tipe-akun',
+                component: AccountType,
+                meta: { title: 'Tipe Akun' }
+            },
+            {
                 path: 'daftar-akun',
                 component: Account,
                 meta: { title: 'Daftar Akun' }
             },
             {
-                path: 'tipe-akun',
-                component: AccountType,
-                meta: { title: 'Tipe Akun' }
+                path: 'daftar-perusahaan',
+                component: Company,
+                meta: { title: 'Daftar Perusahaan' }
             },
-            // {
-            //     path: '/master-data/periode-akuntansi',
-            //     component: AccountingPeriode,
-            //     meta: { title: 'Periode Akuntansi' }
-            // },
         ]
     },
     {
@@ -147,7 +148,7 @@ router.beforeEach((to, from , next) => {
     } else {
         if (to.meta.requiresAuth) {
             localStorage.setItem('authError', 'Silakan login terlebih dahulu.')
-            next('/login')
+            next('/')
         } else {
             next()
         }

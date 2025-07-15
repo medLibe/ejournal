@@ -11,7 +11,7 @@ import Aura from '@primevue/themes/aura'
 import { config, library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import axios from 'axios'
-import { faBarsStaggered, faBars, faMoon, faSun, faUserCircle, faEnvelope, faFileArrowDown, faCheckCircle, faCircleExclamation, faCaretDown, faCircleCheck, faTimes, faFrown, faCog, faSignOutAlt, faCaretUp, faHome, faDashboard, faEdit, faThumbTack, faNewspaper, faProjectDiagram, faUser, faEye, faPlus, faPencilAlt, faThLarge, faLayerGroup, faTrash, faSearch, faBookOpen, faExchangeAlt, faUserCog, faBook, faFileInvoiceDollar, faCogs, faCaretRight, faFileImport, faFile, faFolder, faFileExcel, faFilePdf, faPrint, faPlusCircle, faUpload, faDownload, faBuilding } from '@fortawesome/free-solid-svg-icons'
+import { faBarsStaggered, faBars, faMoon, faSun, faUserCircle, faEnvelope, faFileArrowDown, faCheckCircle, faCircleExclamation, faCaretDown, faCircleCheck, faTimes, faFrown, faCog, faSignOutAlt, faCaretUp, faHome, faDashboard, faEdit, faThumbTack, faNewspaper, faProjectDiagram, faUser, faEye, faPlus, faPencilAlt, faThLarge, faLayerGroup, faTrash, faSearch, faBookOpen, faExchangeAlt, faUserCog, faBook, faFileInvoiceDollar, faCogs, faCaretRight, faFileImport, faFile, faFolder, faFileExcel, faFilePdf, faPrint, faPlusCircle, faUpload, faDownload, faBuilding, faCoins, faFileArchive } from '@fortawesome/free-solid-svg-icons'
 
 // add icons
 library.add(
@@ -25,7 +25,7 @@ library.add(
     faUser, faEye, faPlus, faPencilAlt, faThLarge, faLayerGroup,
     faEdit, faTrash, faSearch, faBookOpen, faExchangeAlt, faUserCog,
     faBook, faFileInvoiceDollar, faCogs, faCaretRight, faFileImport,
-    faFile, faFolder, faPlusCircle, faUpload, faDownload, faBuilding
+    faFile, faFolder, faPlusCircle, faUpload, faDownload, faBuilding, faCoins, faFileArchive
 )
 
 const app = createApp(App)
