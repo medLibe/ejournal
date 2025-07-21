@@ -20,7 +20,7 @@
                     ref="fileUpload"
                     mode="basic" 
                     accept=".csv, .xlsx, .xls" 
-                    :maxFileSize="100000" 
+                    :maxFileSize="5242880" 
                     @select="onFileSelect"
                 />
             </div>
@@ -80,7 +80,6 @@
 </template>
 
 <script>
-import axios from 'axios'
 import Breadcrumb from '../components/Breadcrumb.vue'
 import Column from 'primevue/column'
 import Button from 'primevue/button'

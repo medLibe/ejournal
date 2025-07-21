@@ -3,8 +3,7 @@
         <td :style="{ paddingLeft: `${depth * 20}px` }" class="px-4 py-2 border border-gray-200">
             {{ account.account_name || 'No Account Name' }}
         </td>
-        <td class="px-4 py-2 border border-gray-200 text-right" 
-            :class="{ 'text-rose-600': isNegative(account.total_balance) }">
+        <td class="px-4 py-2 border border-gray-200 text-right">
             {{ formatBalance(account.total_balance) }}
         </td>
     </tr>
@@ -31,15 +30,16 @@ export default {
         }
     },
     methods: {
-        isNegative(value) {
-            return parseFloat(value) < 0;
-        },
         formatBalance(value) {
-            if (value === null || value === undefined) return '-';
-            return new Intl.NumberFormat('id-ID', { 
+            if (value === null || value === undefined) return '-'
+
+            const num = parseFloat(value)
+            const formatted = new Intl.NumberFormat('id-ID', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
-            }).format(parseFloat(value));
+            }).format(Math.abs(num))
+
+            return num < 0 ? `(${formatted})` : formatted
         }
     }
 }

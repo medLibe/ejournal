@@ -12,9 +12,11 @@ import GeneralLedgerEntry from '../views/GeneralLedgerEntry.vue'
 import GeneralLedgerAdjustment from '../views/GeneralLedgerAdjustment.vue'
 import GeneralLedgerDetail from '../views/GeneralLedgerDetail.vue'
 import GeneralLedgerVoucherDetail from '../views/GeneralLedgerVoucherDetail.vue'
-import BalanceSheetStandard from '../views/BalanceSheetStandard.vue'
+import BalanceSheet from '../views/BalanceSheet.vue'
+import TrialBalance from '../views/TrialBalance.vue'
 import IncomeStatement from '../views/IncomeStatement.vue'
 import Ledger from '../views/Ledger.vue'
+import LedgerDetail from '../views/LedgerDetail.vue'
 
 // layout
 import MasterDataLayout from '../components/layouts/MasterDataLayout.vue'
@@ -100,8 +102,13 @@ const routes = [
         children: [
             {
                 path: 'neraca',
-                component: BalanceSheetStandard,
+                component: BalanceSheet,
                 meta: { title: 'Neraca' }
+            },
+            {
+                path: 'neraca-saldo',
+                component: TrialBalance,
+                meta: { title: 'Neraca Saldo' }
             },
             {
                 path: 'laba-rugi',
@@ -112,6 +119,11 @@ const routes = [
                 path: 'buku-besar',
                 component: Ledger,
                 meta: { title: 'Buku Besar' }
+            },
+            {
+                path: 'buku-besar-rinci',
+                component: LedgerDetail,
+                meta: { title: 'Buku Besar Rinci' }
             },
         ]
     },

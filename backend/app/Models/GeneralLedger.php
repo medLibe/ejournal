@@ -112,7 +112,7 @@ class GeneralLedger extends Model
             ->get();
     }
 
-    public function getLedgers($account_id, $start_date, $end_date)
+    public function getLedgers($account_id, $start_date, $end_date, $division = null)
     {
         $periode = date('Ym', strtotime($start_date));
 
@@ -178,10 +178,16 @@ class GeneralLedger extends Model
         }
 
         // get transaction in specified periode
-        $transactions = DB::table('general_ledgers')
+        $transactionsQuery = DB::table('general_ledgers')
                 ->where('account_id', $account_id)
                 ->whereBetween('transaction_date', [$start_date, $end_date])
-                ->join('accounts', 'general_ledgers.account_id', '=', 'accounts.id')
+                ->join('accounts', 'general_ledgers.account_id', '=', 'accounts.id');
+
+        if ($division) {
+            $transactionsQuery->where('general_ledgers.department', $division);
+        }
+
+        $transactions = $transactionsQuery
                 ->orderBy('general_ledgers.transaction_date', 'asc')
                 ->orderBy('general_ledgers.reference_no', 'asc')
                 ->get([
@@ -210,11 +216,16 @@ class GeneralLedger extends Model
         // format transaction with current balance
         $balance = $opening_balance;
         $formattedTransactions = [$opening_balance_entry];
+        $grand_total_debit = 0;
+        $grand_total_credit = 0;
 
         foreach ($transactions as $trx) {
             $debit = $trx->transaction_type == 1 ? $trx->amount : 0;
             $credit = $trx->transaction_type == 2 ? $trx->amount : 0;
             $balance += $debit - $credit;
+
+            $grand_total_debit += $debit;
+            $grand_total_credit += $credit;
 
             $formattedTransactions[] = (object) [
                 'id' => $trx->id,
@@ -229,7 +240,120 @@ class GeneralLedger extends Model
             ];
         }
 
-        return $formattedTransactions;
+        return [
+            'ledgers'   => $formattedTransactions,
+            'totals'    => [
+                'debit'     => $grand_total_debit,
+                'credit'    => $grand_total_credit,
+            ]
+        ];
+    }
+
+    public function getLedgerDetails($start_date, $end_date, $division = null)
+    {
+        $periode = date('Ym', strtotime($start_date));
+        $prev_periode = date('Ym', strtotime($start_date . ' -1 month'));
+
+        // get all account which has transaction in period
+        $accountsQuery = DB::table('general_ledgers')
+            ->join('accounts', 'general_ledgers.account_id', '=', 'accounts.id')
+            ->whereBetween('general_ledgers.transaction_date', [$start_date, $end_date]);
+
+        if ($division) {
+            $accountsQuery->where('general_ledgers.department', $division);
+        }
+        
+        $accounts = $accountsQuery
+            ->select('accounts.id', 'accounts.account_code', 'accounts.account_name')
+            ->distinct()
+            ->orderBy('accounts.account_code')
+            ->get();
+
+        $result = [];
+
+        $grand_total_debit = 0;
+        $grand_total_credit = 0;
+
+        foreach ($accounts as $account) {
+            // count opening balance
+            $opening_balance = DB::table('periode_balances')
+                ->where('account_id', $account->id)
+                ->where('periode', $prev_periode)
+                ->value('closing_balance');
+
+            if (is_null($opening_balance)) {
+                $opening_balance = DB::table('accounts')
+                    ->where('id', $account->id)
+                    ->value('opening_balance');
+            }
+
+            // opening balance as first row
+            $opening_entry = (object)[
+                'id' => null,
+                'transaction_date' => date('Y-m-d', strtotime($start_date . ' -1 day')),
+                'description' => 'Saldo Awal',
+                'reference_no' => '',
+                'reference' => '',
+                'transaction_type' => null,
+                'debit' => 0,
+                'credit' => 0,
+                'balance' => $opening_balance,
+            ];
+
+            $ledger_rows = [$opening_entry];
+
+            // get all transactions of account in period
+            $transactionsQuery = DB::table('general_ledgers')
+                ->where('account_id', $account->id)
+                ->whereBetween('transaction_date', [$start_date, $end_date]);
+
+            if ($division) {
+                $transactionsQuery->where('department', $division);
+            }
+
+            $transactions = $transactionsQuery
+                ->orderBy('transaction_date')
+                ->orderBy('reference_no')
+                ->get();
+
+            $balance = $opening_balance;
+
+            foreach ($transactions as $trx) {
+                $debit = $trx->transaction_type == 1 ? $trx->amount : 0;
+                $credit = $trx->transaction_type == 2 ? $trx->amount : 0;
+                $balance += $debit - $credit;
+
+                $grand_total_debit += $debit;
+                $grand_total_credit += $credit;
+
+                $ledger_rows[] = (object)[
+                    'id' => $trx->id,
+                    'transaction_date' => $trx->transaction_date,
+                    'description' => $trx->description,
+                    'reference_no' => $trx->reference_no,
+                    'reference' => $trx->reference,
+                    'transaction_type' => $trx->transaction_type,
+                    'debit' => $debit,
+                    'credit' => $credit,
+                    'balance' => $balance,
+                ];
+            }
+
+            $result[] = [
+                'account_id' => $account->id,
+                'account_code' => $account->account_code,
+                'account_name' => $account->account_name,
+                'ledger' => $ledger_rows
+            ];
+        }
+
+        return [
+            'ledgers'   => $result,
+            'totals'    => [
+                'debit'     => $grand_total_debit,
+                'credit'    => $grand_total_credit,
+            ]
+        ];
     }
 
     public function countAmountGeneralLedger($year, $month)

@@ -89,7 +89,6 @@ class GeneralLedgerImportController extends Controller
         }
 
         $currentDB = DB::connection()->getDatabaseName();
-
         try {
             $apiUrl = env('GO_API_URL');
             $response = Http::attach(

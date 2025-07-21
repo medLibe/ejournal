@@ -25,13 +25,16 @@ The Master Data feature allows users to manage core data used across the system,
 - **Account List**: View and manage all accounts.
 - **Import Accounts**: Import accounts from external files for easy setup.
 - **Account Types**: Define and categorize account types (e.g., Asset, Liability, Equity, Revenue, Expense).
+- **Company Lists**: Add or delete company data in each transaction, either as a supplier or as a customer.
 
 ### 4. **Reports**
 The Reports section provides various financial reports to help users track and analyze their financial status.
 
 #### **Sub-features:**
 - **Balance Sheet (Neraca)**: View a detailed balance sheet that summarizes the financial position of the organization at a specific point in time.
-- **General Ledger (Buku Besar)**: View detailed transaction history for each account.
+- **Trial Balance (Neraca Saldo)**: View a detailed trial balance that summarizes the financial position of the organization at a specific point in time for all acounts.
+- **Ledger (Buku Besar)**: View detailed transaction history for each account.
+- **Ledger Detail (Buku Besar Rinci)**: View detailed transaction history for all accounts.
 - **Profit and Loss / Income Statement (Laba Rugi)**: Generate a profit and loss statement to analyze revenue, expenses, and net profit over a specific period.
 
 ---

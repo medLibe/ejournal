@@ -62,12 +62,15 @@ Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', Mul
     Route::prefix('general-ledger')->controller(GeneralLedgerImportController::class)->group(function() {
         Route::post('/', 'storeGeneralLedger');
         Route::post('/import', 'importGeneralLedger');
+        Route::post('/import', 'importGeneralLedger');
     });
 
     Route::prefix('report')->controller(ReportController::class)->group(function() {
         Route::get('/balance-sheet', 'getBalanceSheets');
+        Route::get('/trial-balance', 'getTrialBalances');
         Route::get('/income-statement', 'getIncomeStatements');
         Route::get('/ledger', 'getLedgers');
+        Route::get('/ledger-detail', 'getLedgerDetails');
         Route::get('/accounts', 'getAccounts');
     });
 });

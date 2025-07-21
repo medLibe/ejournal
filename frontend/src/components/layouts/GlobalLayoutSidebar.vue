@@ -93,7 +93,7 @@ export default {
         },
         isActive(link) {
             if (!link) return false
-            return this.$route.path.startsWith(link)
+            return this.$route.path === link
         },
         isActiveSubmenu(submenu) {
             if (!submenu) return false

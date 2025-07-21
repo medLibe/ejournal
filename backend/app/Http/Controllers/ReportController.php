@@ -28,6 +28,7 @@ class ReportController extends Controller
             $view_total = $request->query('viewTotal') === 'true';
             $view_parent = $request->query('viewParent') === 'true';
             $view_children = $request->query('viewChildren') === 'true';
+            $division = $request->query('division');
 
             if(!$date_periode) {
                 return response()->json([
@@ -48,10 +49,38 @@ class ReportController extends Controller
             }
 
             if ($view_total) {
-                $result = $this->periodeBalance->getTotalBalanceSheet($date_periode);
+                $result = $this->periodeBalance->getTotalBalanceSheet($date_periode, $division);
             } else {
-                $result = $this->periodeBalance->getDetailedBalanceSheet($date_periode, $view_children);
+                $result = $this->periodeBalance->getDetailedBalanceSheet($date_periode, $view_children, $division);
             }
+
+            return response()->json([
+                'status'    => true,
+                'data'      => $result,
+            ]);
+        } catch (Exception $error) {
+            return response()->json([
+                'status'    => false,
+                'message'   => $error->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getTrialBalances(Request $request)
+    {
+        try {
+            $start_date = $request->query('startDate');
+            $end_date = $request->query('endDate');
+            $division = $request->query('division');
+
+            if(!$start_date || !$end_date) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Tanggal wajib diisi.'
+                ], 400);
+            }
+
+            $result = $this->periodeBalance->getTrialBalance($start_date, $end_date, $division);
 
             return response()->json([
                 'status'    => true,
@@ -134,6 +163,7 @@ class ReportController extends Controller
             $start_date = $request->query('startDate');
             $end_date = $request->query('endDate');
             $account_id = $request->query('accountId');
+            $division = $request->query('division');
 
             if(!$start_date && !$end_date) {
                 return response()->json([
@@ -149,11 +179,40 @@ class ReportController extends Controller
                 ], 400);
             }
 
-            $result = $this->generalLedger->getLedgers($account_id, $start_date, $end_date);
+            $result = $this->generalLedger->getLedgers($account_id, $start_date, $end_date, $division);
 
             return response()->json([
                 'status'    => true,
                 'data'      => $result,
+            ]);
+        } catch (Exception $error) {
+            return response()->json([
+                'status'    => false,
+                'message'   => $error->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getLedgerDetails(Request $request)
+    {
+        try {
+            $start_date = $request->query('startDate');
+            $end_date = $request->query('endDate');
+            $division = $request->query('division');
+
+    
+            if (!$start_date || !$end_date) {
+                return response()->json([
+                    'status'    => false,
+                    'message'   => 'Tanggal awal dan akhir wajib diisi.'
+                ], 400);
+            }
+    
+            $result = $this->generalLedger->getLedgerDetails($start_date, $end_date, $division);
+    
+            return response()->json([
+                'status'    => true,
+                'data'      => $result
             ]);
         } catch (Exception $error) {
             return response()->json([

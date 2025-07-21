@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.3] - 2025-07-21
+### Added
+- **Report Menu Enhancements**:
+  - Introduced **Trial Balance (Neraca Saldo)** report
+  - Added **Ledger Detail (Buku Besar Rinci)** report
+
+### Improved
+- **Negative Value Formatting**: Changed display format of negative values from `-1.000.000` to `(1.000.000)`
+- **Report Table UX**: Table headers in report views now remain visible even when no data is shown (e.g., before applying filters)
+- **Division Input for MAC Database**: A division selection dropdown now appears for users accessing MAC-specific data
+
+### Fixed
+- **Sidebar Bug**: Resolved layout/display issue occurring in the sidebar navigation
+
+---
+
 ## [1.0.2] - 2025-07-15
 ### Added
 - **Dashboard Info Cards**: Introduced new summary cards on the dashboard for:

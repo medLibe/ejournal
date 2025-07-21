@@ -59,6 +59,23 @@
                 <!-- <Message v-if="$form.date?.invalid" severity="error" size="small" variant="simple">{{
                     $form.date.error?.message }}</Message> -->
             </div>
+
+            <div class="mb-4" v-if="showMacOptions">
+                <FloatLabel variant="on">
+                    <Select 
+                        v-model="formData.division" 
+                        :options="[
+                            { label: 'MAC Product', value: 'MAC' },
+                            { label: 'MAC Flushing', value: 'FLH' }
+                        ]"
+                        optionLabel="label" 
+                        class="w-full"
+                    />
+                    <label for="over_label">Divisi</label>
+                </FloatLabel>
+                <Message v-if="$form.division?.invalid" severity="error" size="small" variant="simple">{{
+                    $form.division.error?.message }}</Message>
+            </div>
         </Form>
 
         <template #footer>
@@ -107,12 +124,15 @@ export default {
     data() {
         return {
             responseMessage: null,
+            showMacOptions: false,
             today: new Date(),
             allAccounts: [],
             filteredAccounts: [],
+            division: null,
             formData: {
                 startDate: null,
                 endDate: null,
+                division: null,
             },
         }
     },
@@ -164,6 +184,7 @@ export default {
                 accountId: this.formData.selectedAccount?.id || null,
                 startDate: formatDate(this.formData.startDate),
                 endDate: formatDate(this.formData.endDate),
+                division: this.formData.division?.value ?? null,
             }
 
             this.showLoader()
@@ -188,13 +209,19 @@ export default {
                         })
 
                         // emit data
-                        this.$emit('fetchLedgers', response.data.data)
+                        this.$emit('fetchLedgers', response.data.data.ledgers, response.data.data.totals)
 
-                        this.formData = {
+                         // reset form
+                        const resetForm = {
                             startDate: null,
                             endDate: null,
-                            accountId: null,
                         }
+
+                        if ('division' in this.formData) {
+                            resetForm.division = null
+                        }
+
+                        this.formData = resetForm
 
                         this.onCancel()
                         
@@ -235,6 +262,24 @@ export default {
         this.formData.startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         this.formData.endDate = this.today
         this.fetchAccounts()
+
+        try {
+            const encodedDb = localStorage.getItem('db')
+            if (encodedDb) {
+                const decodeDb = atob(encodedDb)
+                if (decodeDb === '1') {
+                    this.showMacOptions = true
+                }
+            }
+        } catch (error) {
+            console.error(error)
+            this.$toast.add({
+                severity: severity,
+                summary: 'Decode DB Gagal.',
+                detail: error.response ? error.response.data.message : 'An error occurred during filter.',
+                life: 3000
+            })
+        }
     }
 }
 </script>

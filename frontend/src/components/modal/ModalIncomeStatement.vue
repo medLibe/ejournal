@@ -47,7 +47,7 @@
                     $form.date.error?.message }}</Message>
             </div>
 
-             <div class="mb-4" v-if="showMacOptions">
+            <div class="mb-4" v-if="showMacOptions">
                 <FloatLabel variant="on">
                     <Select 
                         v-model="formData.division" 
@@ -246,10 +246,17 @@ export default {
                             viewChildren: this.formData.viewChildren
                         })
 
-                        this.formData = {
+                        // reset form
+                        const resetForm = {
                             startDate: null,
                             endDate: null,
                         }
+
+                        if ('division' in this.formData) {
+                            resetForm.division = null
+                        }
+
+                        this.formData = resetForm
 
                         this.onCancel()
                         

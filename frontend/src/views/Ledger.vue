@@ -17,7 +17,7 @@
            </div>
             
            <!-- table ledger -->
-           <table class="w-full border-collapse border border-gray-300 mt-5">
+           <table class="w-full text-sm border-collapse border border-gray-300 mt-5">
                 <thead>
                     <tr class="bg-gray-100 text-left">
                         <th class="border border-gray-300 p-2">Tanggal</th>
@@ -31,10 +31,6 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-if="openingBalance !== null" class="bg-gray-100 font-semibold">
-                        <td colspan="5" class="border border-gray-300 p-2 text-right">Saldo Awal</td>
-                        <td class="border border-gray-300 p-2 text-right font-semibold">{{ formatCurrency(openingBalance) }}</td>
-                    </tr>
                     <tr v-for="(item, index) in formattedData" :key="item.id" class="border-b">
                         <td class="border border-gray-300 p-2">{{ formatDate(item.transaction_date) }}</td>
                         <td class="border border-gray-300 p-2">{{ item.account_code }}</td>
@@ -45,14 +41,20 @@
                         <td class="border border-gray-300 p-2 text-right">{{ formatCurrency(item.credit) }}</td>
                         <td class="border border-gray-300 p-2 text-right font-semibold">{{ formatCurrency(item.balance) }}</td>
                     </tr>
-                    <!-- total -->
+                </tbody>
+
+                <tfoot>
                     <tr class="bg-gray-200 font-semibold">
-                        <td colspan="5" class="border border-gray-300 p-2 text-right">Total {{ openingBalance }}</td>
-                        <td class="border border-gray-300 p-2 text-right">{{ formatCurrency(totalDebit) }}</td>
-                        <td class="border border-gray-300 p-2 text-right">{{ formatCurrency(totalCredit) }}</td>
+                        <td colspan="5" class="border border-gray-300 p-2 text-right">Total</td>
+                        <td class="border border-gray-300 p-2 text-right">
+                            {{ formatCurrency(grandTotalDebit) }}
+                        </td>
+                        <td class="border border-gray-300 p-2 text-right">
+                            {{ formatCurrency(grandTotalCredit) }}
+                        </td>
                         <td class="border border-gray-300 p-2"></td>
                     </tr>
-                </tbody>
+                </tfoot>
             </table>
            
         </div>
@@ -87,6 +89,8 @@ export default {
             rawData: [],
             filteredData: null,
             openingBalance: null,
+            grandTotalDebit: 0,
+            grandTotalCredit: 0
         }
     },
     computed: {
@@ -115,27 +119,30 @@ export default {
                 }
             })
         },
-        totalDebit() {
-            return this.formattedData.reduce((acc, item) => acc + item.debit, 0)
-        },
-        totalCredit() {
-            return this.formattedData.reduce((acc, item) => acc + item.credit, 0)
-        }
     },
     methods: {
         formatCurrency(value) {
             if (value == null || value === undefined || isNaN(value)) return '-'
-            return new Intl.NumberFormat('id-ID', {
+            const absFormatted =  new Intl.NumberFormat('id-ID', {
                 style: 'currency',
                 currency: 'IDR'
-            }).format(value)
+            }).format(Math.abs(value))
+
+            return value < 0 ? `(${absFormatted})` : absFormatted
         },
         formatDate(dateStr) {
             const date = new Date(dateStr)
             return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' })
         },
-        fetchLedger(data) {
-            this.filteredData = data
+        fetchLedger(ledgers, totals) {
+            this.filteredData = ledgers
+
+            const opening = ledgers.find(item => item.description === 'Saldo Awal' && item.id === null)
+            this.openingBalance = opening ? parseFloat(opening.balance) || 0 : 0
+
+            // Simpan grand total langsung
+            this.grandTotalDebit = totals.debit
+            this.grandTotalCredit = totals.credit
         }
     },
 }

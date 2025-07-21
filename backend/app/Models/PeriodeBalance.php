@@ -15,30 +15,47 @@ class PeriodeBalance extends Model
         'closing_balance'
     ];
 
-    public function account()
+    function account()
     {
         return $this->belongsTo(Account::class);
     }
 
-    public function getTotalBalanceSheet($date_periode)
+    function getTotalBalanceSheet($date_periode, $division = null)
     {
-        $formattedPeriode = Carbon::parse($date_periode)->format('Ym');
+        $startOfTime = '2000-01-01'; // or system start
+        $endDate = Carbon::parse($date_periode)->endOfMonth()->toDateString();
 
-        $balances =  DB::table('periode_balances as pb')
-            ->join('accounts as a', 'pb.account_id', '=', 'a.id')
-            ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
-            ->join('account_groups as ag', 'at.account_group_id', '=', 'ag.id')
-            ->where('pb.periode', '<=', $formattedPeriode)
-            ->whereIn('ag.id', [1, 2, 3])
-            ->groupBy('ag.account_group_name', 'at.account_type_name')
-            ->select(
-                'ag.account_group_name',
-                'at.account_type_name',
-                DB::raw('SUM(pb.closing_balance) as total_balance')
-            )
-            ->orderBy('ag.account_group_name')
-            ->orderBy('at.account_type_name')
-            ->get();
+        // $balances =  DB::table('periode_balances as pb')
+        //     ->join('accounts as a', 'pb.account_id', '=', 'a.id')
+        //     ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
+        //     ->join('account_groups as ag', 'at.account_group_id', '=', 'ag.id')
+        //     ->where('pb.periode', '<=', $formattedPeriode)
+        //     ->whereIn('ag.id', [1, 2, 3])
+        //     ->groupBy('ag.account_group_name', 'at.account_type_name')
+        //     ->select(
+        //         'ag.account_group_name',
+        //         'at.account_type_name',
+        //         DB::raw('SUM(pb.closing_balance) as total_balance')
+        //     )
+        //     ->orderBy('ag.account_group_name')
+        //     ->orderBy('at.account_type_name')
+        //     ->get();
+
+        $balances = DB::table('general_ledgers as gl')
+                        ->join('accounts as a', 'gl.account_id', '=', 'a.id')
+                        ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
+                        ->join('account_groups as ag', 'at.account_group_id', '=', 'ag.id')
+                        ->whereBetween('gl.transaction_date', [$startOfTime, $endDate])
+                        ->when($division, fn($q) => $q->where('gl.department', $division))
+                        ->whereIn('ag.id', [1, 2, 3])
+                        ->select(
+                            'ag.account_group_name',
+                            'at.account_type_name',
+                            DB::raw('SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) as debit'),
+                            DB::raw('SUM(CASE WHEN gl.transaction_type = 2 THEN gl.amount ELSE 0 END) as credit')
+                        )
+                        ->groupBy('ag.account_group_name', 'at.account_type_name')
+                        ->get();
 
         // convert query result to hierarchy format
         $hierarchicalData = [];
@@ -46,6 +63,7 @@ class PeriodeBalance extends Model
         foreach ($balances as $balance) {
             $group = $balance->account_group_name;
             $type = $balance->account_type_name;
+            $total = $balance->debit - $balance->credit;
 
             if (!isset($hierarchicalData[$group])) {
                 $hierarchicalData[$group] = [];
@@ -53,16 +71,17 @@ class PeriodeBalance extends Model
 
             $hierarchicalData[$group][] = [
                 'account_type_name' => $type,
-                'total_balance' => $balance->total_balance
+                'total_balance' => $total
             ];
         }
 
         return $hierarchicalData;
     }
 
-    public function getDetailedBalanceSheet($date_periode, $view_children)
+    function getDetailedBalanceSheet($date_periode, $view_children, $division = null)
     {
         $formattedPeriode = Carbon::parse($date_periode)->format('Ym');
+        $endDate = Carbon::parse($date_periode)->endOfMonth()->toDateString();
 
         // get parent account
         $accounts = Account::whereNull('parent_id')
@@ -96,25 +115,43 @@ class PeriodeBalance extends Model
             ])
             ->get();
 
-        // recursive function to calculate balance from its children
-        function calculateBalance($account)
-        {
-            // get closing_balance from account itself
-            $selfBalance = $account->balances->sum('closing_balance') ?? 0;
+        // get balance from general ledgers if division requested
+        $ledgerBalances = collect();
+        if ($division) {
+            $ledgerQuery = DB::table('general_ledgers')
+                ->select(
+                    'account_id',
+                    DB::raw("SUM(CASE WHEN transaction_type = 1 THEN amount ELSE 0 END) AS total_debit"),
+                    DB::raw("SUM(CASE WHEN transaction_type = 2 THEN amount ELSE 0 END) AS total_credit")
+                )
+                ->whereDate('transaction_date', '<=', $endDate)
+                ->where('department', $division)
+                ->groupBy('account_id')
+                ->get();
 
-            // if children exist add balance from its children
-            $childrenBalance = $account->children->sum(fn($child) => calculateBalance($child));
-
-            // return balance total account + child
-            return $selfBalance + $childrenBalance;
+            $ledgerBalances = $ledgerQuery->mapWithKeys(function ($item) {
+                return [$item->account_id => $item->total_debit - $item->total_credit];
+            });
         }
 
+        // calculated recursive balance
+        $calculateBalance = function ($account) use (&$calculateBalance, $division, $ledgerBalances) {
+            if ($division) {
+                $selfBalance = $ledgerBalances[$account->id] ?? 0;
+            } else {
+                $selfBalance = $account->balances->sum('closing_balance') ?? 0;
+            }
+
+            $childrenBalance = $account->children->sum(fn($child) => $calculateBalance($child));
+
+            return $selfBalance + $childrenBalance;
+        };
+
         // recursive function to filter out zero balance accounts
-        function filterZeroBalance($accounts, $view_children)
-        {
-            return $accounts->map(function ($account) use ($view_children) {
-                $calculatedBalance = calculateBalance($account);
-                $filteredChildren = $view_children ? filterZeroBalance($account->children, $view_children) : [];
+        $filterZeroBalance = function ($accounts) use (&$filterZeroBalance, $calculateBalance, $view_children) {
+            return $accounts->map(function ($account) use ($filterZeroBalance, $calculateBalance, $view_children) {
+                $calculatedBalance = $calculateBalance($account);
+                $filteredChildren = $view_children ? $filterZeroBalance($account->children) : [];
 
                 return [
                     'id' => $account->id,
@@ -122,11 +159,10 @@ class PeriodeBalance extends Model
                     'balance' => $calculatedBalance,
                     'children' => $filteredChildren
                 ];
-            })
-            ->filter(function ($account) {
+            })->filter(function ($account) {
                 return $account['balance'] != 0 || count($account['children']) > 0;
             })->values();
-        }
+        };
 
         // grouping based on account groups
         $groupedData = $accounts->groupBy(function ($account) {
@@ -141,23 +177,19 @@ class PeriodeBalance extends Model
         });
 
         // format result
-        return $groupedData->map(function ($group) use ($view_children) {
-            $filteredAccounts = filterZeroBalance($group, $view_children);
+        return $groupedData->map(function ($group) use ($filterZeroBalance, $view_children, $calculateBalance) {
+            $filteredAccounts = $filterZeroBalance($group);
             $totalBalanceGroup = collect($filteredAccounts)->sum('balance');
 
-            if ($filteredAccounts->isEmpty()) {
-                return null;
-            }
+            if ($filteredAccounts->isEmpty()) return null;
 
             return [
                 'account_group_name' => $group->first()->accountType->accountGroup->account_group_name ?? 'Tanpa Kelompok',
                 'total_balance' => $totalBalanceGroup,
-                'account_types' => $group->groupBy('accountType.account_type_name')->map(function ($typeAccounts, $typeName) use ($view_children) {
-                    $filteredAccounts = filterZeroBalance($typeAccounts, $view_children);
+                'account_types' => $group->groupBy('accountType.account_type_name')->map(function ($typeAccounts, $typeName) use ($filterZeroBalance) {
+                    $filteredAccounts = $filterZeroBalance($typeAccounts);
 
-                    if ($filteredAccounts->isEmpty()) {
-                        return null;
-                    }
+                    if ($filteredAccounts->isEmpty()) return null;
 
                     return [
                         'account_type_name' => $typeName,
@@ -168,7 +200,7 @@ class PeriodeBalance extends Model
         })->filter()->values();
     }
 
-    public function getTotalIncomeStatement($start_date, $end_date, $division)
+    function getTotalIncomeStatement($start_date, $end_date, $division)
     {
         $formattedStart = Carbon::parse($start_date)->format('Ym');
         $formattedEnd = Carbon::parse($end_date)->format('Ym');
@@ -312,23 +344,115 @@ class PeriodeBalance extends Model
         ];    
     }
 
-    // public function getDetailedIncomeStatement($start_date, $end_date, $view_children)
-    // {
-    //     $query = DB::table('general_ledgers as gl')
-    //         ->join('accounts as a', 'gl.account_id', '=', 'a.id')
-    //         ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
-    //         ->where('gl.periode', '=', $date_periode)
-    //         ->select(
-    //             'at.account_type_name as kategori',
-    //             'a.account_name as akun',
-    //             DB::raw('SUM(gl.amount) as total')
-    //         )
-    //         ->groupBy('at.account_type_name', 'a.account_name');
+    function getTrialBalance($start_date, $end_date, $division = null)
+    {
+        $periodeStart = Carbon::parse($start_date)->format('Ym');
+        $periodeEnd = Carbon::parse($end_date)->format('Ym');
 
-    //     if (!$view_children) {
-    //         $query->selectRaw('SUM(gl.amount) as total')->groupBy('at.account_type_name');
-    //     }
+        // step 1: get all accounts
+        $accounts = DB::table('accounts')
+                ->select('id', 'account_code', 'account_name')
+                ->orderBy('account_code')
+                ->get()
+                ->keyBy('id');
 
-    //     return $query->get();
-    // }
+
+        // step 2: get opening balances
+        $opening = DB::table('periode_balances')
+                ->where('periode', '<', $periodeStart)
+                ->select('account_id', DB::raw('SUM(closing_balance) as opening_balance'))
+                ->groupBy('account_id')
+                ->pluck('opening_balance', 'account_id');
+
+        // step 3: get mutation debit/credit
+        $mutations = DB::table('general_ledgers')
+                ->whereBetween('transaction_date', [$start_date, $end_date])
+                ->when($division, fn($q) => $q->where('department', $division))
+                ->select(
+                    'account_id',
+                    DB::raw('SUM(CASE WHEN transaction_type = 1 THEN amount ELSE 0 END) as debit'),
+                    DB::raw('SUM(CASE WHEN transaction_type = 2 THEN amount ELSE 0 END) as credit')
+                )
+                ->groupBy('account_id')
+                ->get()
+                ->keyBy('account_id');
+
+        // step 4: build tree structure
+        $structured = [];
+        $totals = [
+            'opening_debit' => 0,
+            'opening_credit' => 0,
+            'mutation_debit' => 0,
+            'mutation_credit' => 0,
+            'closing_debit' => 0,
+            'closing_credit' => 0,
+        ];
+
+        foreach ($accounts as $id => $acc) {
+            $code = $acc->account_code;
+            $segments = explode('.', $code);
+
+            if (!isset($opening[$id]) && !isset($mutations[$id])) {
+                continue;
+            }
+
+            $open = $opening[$id] ?? 0;
+            $debit = $mutations[$id]->debit ?? 0;
+            $credit = $mutations[$id]->credit ?? 0;
+            $close = $open + $debit - $credit;
+
+            $entry = [
+                'account_code' => $code,
+                'account_name' => $acc->account_name,
+                'opening_debit' => $open >= 0 ? $open : 0,
+                'opening_credit' => $open < 0 ? abs($open) : 0,
+                'mutation_debit' => $debit,
+                'mutation_credit' => $credit,
+                'closing_debit' => $close >= 0 ? $close : 0,
+                'closing_credit' => $close < 0 ? abs($close) : 0,
+            ];
+
+            $totals['opening_debit'] += $entry['opening_debit'];
+            $totals['opening_credit'] += $entry['opening_credit'];
+            $totals['mutation_debit'] += $entry['mutation_debit'];
+            $totals['mutation_credit'] += $entry['mutation_credit'];
+            $totals['closing_debit'] += $entry['closing_debit'];
+            $totals['closing_credit'] += $entry['closing_credit'];
+
+            if (count($segments) === 1) {
+                $structured[$code] = [
+                    'group_code' => $code,
+                    'group_name' => $acc->account_name,
+                    'children' => [$entry]
+                ];
+            } elseif (count($segments) === 2) {
+                $p = $segments[0];
+                $structured[$p]['children'][$code] = [
+                    'account_code' => $code,
+                    'account_name' => $acc->account_name,
+                    'children' => [$entry]
+                ];
+            } else {
+                $p = $segments[0];
+                $s = $segments[0] . '.' . $segments[1];
+                $structured[$p]['children'][$s]['children'][] = $entry;
+            }
+        }
+
+        // reset array index (from assoc to numeric)
+        foreach ($structured as &$g) {
+            $g['children'] = array_values($g['children']);
+            foreach ($g['children'] as &$sub) {
+                if (isset($sub['children'])) {
+                    $sub['children'] = array_values($sub['children']);
+                }
+            }
+        }
+
+        return [
+            'status'    => true,
+            'data'      => array_values($structured),
+            'totals'    => $totals,
+        ];
+    }
 }
