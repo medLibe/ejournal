@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -130,32 +131,44 @@ func ImportGeneralLedgerHandler(c *gin.Context) {
 
 	var preview []models.LedgerRow
 	var totalDebit, totalKredit float64
+	missingAccounts := map[string]bool{}
 
-	for _, row := range rows[1:] {
-		if len(row) == 0 || len(row) <= colIndex["nomor_akun"] {
+	for i, row := range rows[1:] {
+		lineNumber := i + 2
+
+		// Check length row
+		if len(row) <= colIndex["nomor_akun"] {
+			errors = append(errors, fmt.Sprintf("Baris %d: Kolom 'nomor akun' tidak ditemukan atau kosong.", lineNumber))
 			continue
 		}
 
 		akun := strings.TrimSpace(row[colIndex["nomor_akun"]])
 		if akun == "" {
+			errors = append(errors, fmt.Sprintf("Baris %d: Nomor akun kosong.", lineNumber))
 			continue
 		}
 
+		// check if account exist in db
 		var account models.Account
 		err = db.Where("account_code = ?", akun).First(&account).Error
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{
-				"status":  false,
-				"message": fmt.Sprintf("Nomor akun '%s' tidak ditemukan.", akun),
-			})
+			errors = append(errors, fmt.Sprintf("Baris %d: Nomor akun '%s' tidak ditemukan di database.", lineNumber, akun))
+			missingAccounts[akun] = true
 			continue
 		}
 
-		// nominal checking
-		debitStr := strings.ReplaceAll(row[colIndex["debit"]], ",", "")
-		kreditStr := strings.ReplaceAll(row[colIndex["kredit"]], ",", "")
-		debit, _ := strconv.ParseFloat(debitStr, 64)
-		kredit, _ := strconv.ParseFloat(kreditStr, 64)
+		rawDebit := row[colIndex["debit"]]
+		rawKredit := row[colIndex["kredit"]]
+		debitStr := cleanNumeric(rawDebit)
+		kreditStr := cleanNumeric(rawKredit)
+
+		debit, errDebit := strconv.ParseFloat(debitStr, 64)
+		kredit, errKredit := strconv.ParseFloat(kreditStr, 64)
+
+		if errDebit != nil && errKredit != nil {
+			errors = append(errors, fmt.Sprintf("Baris %d: Gagal parsing nilai debit/kredit.", lineNumber))
+			continue
+		}
 
 		var nominal float64
 		var tipeTransaksi int
@@ -168,29 +181,28 @@ func ImportGeneralLedgerHandler(c *gin.Context) {
 			tipeTransaksi = 2
 			totalKredit += nominal
 		} else {
+			errors = append(errors, fmt.Sprintf("Baris %d: Nilai debit dan kredit keduanya nol.", lineNumber))
 			continue
 		}
 
-		// date conversion
+		// convert date
 		tanggalRaw := row[colIndex["tanggal"]]
 		tanggal, err := convertExcelDate(tanggalRaw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status":  false,
-				"message": fmt.Sprintf("Tanggal tidak valid: %s", tanggalRaw),
-			})
-			return
+			errors = append(errors, fmt.Sprintf("Baris %d: Tanggal tidak valid: %s", lineNumber, tanggalRaw))
+			continue
 		}
 
+		// make entry
 		entry := models.LedgerRow{
 			Tanggal:       tanggal.Format("2006-01-02"),
 			NomorAkun:     akun,
-			NamaAkun:      row[colIndex["nama_akun"]],
-			Department:    row[colIndex["department"]],
-			NomorSumber:   row[colIndex["nomor_sumber"]],
-			TipeSumber:    row[colIndex["tipe_sumber"]],
+			NamaAkun:      safeGet(row, colIndex, "nama_akun"),
+			Department:    safeGet(row, colIndex, "department"),
+			NomorSumber:   safeGet(row, colIndex, "nomor_sumber"),
+			TipeSumber:    safeGet(row, colIndex, "tipe_sumber"),
 			Nominal:       nominal,
-			Keterangan:    row[colIndex["keterangan"]],
+			Keterangan:    safeGet(row, colIndex, "keterangan"),
 			TipeTransaksi: tipeTransaksi,
 			IDAkun:        account.ID,
 		}
@@ -198,10 +210,25 @@ func ImportGeneralLedgerHandler(c *gin.Context) {
 		preview = append(preview, entry)
 	}
 
-	if int(totalDebit) != int(totalKredit) {
-		c.JSON(http.StatusConflict, gin.H{
+	fmt.Printf("[DEBUG] Total Debit=%.2f | Total Kredit=%.2f | Selisih=%.2f\n", totalDebit, totalKredit, totalDebit-totalKredit)
+
+	if len(preview) == 0 {
+		msg := "Semua baris gagal diproses."
+		if len(errors) > 0 {
+			msg += " Kesalahan: " + strings.Join(errors, " ")
+		}
+
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
 			"status":  false,
-			"message": fmt.Sprintf("Total debit dan kredit tidak balance. Debit: %.2f, Kredit: %.2f", totalDebit, totalKredit),
+			"message": msg,
+		})
+		return
+	}
+
+	if len(missingAccounts) > 0 {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"status":  false,
+			"message": strings.Join(errors, " "),
 		})
 		return
 	}
@@ -231,9 +258,75 @@ func normalizeHeader(s string) string {
 
 func convertExcelDate(value string) (time.Time, error) {
 	if serial, err := strconv.ParseFloat(value, 64); err == nil {
-		// Excel serial date
+		// excel serial date
 		return time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC).Add(time.Duration(serial*86400) * time.Second), nil
 	}
-	// Assume format like "2024-05-22"
+	// assume format like "2024-05-22"
 	return time.Parse("2006-01-02", value)
+}
+
+func safeGet(row []string, colIndex map[string]int, key string) string {
+	idx, ok := colIndex[key]
+	if !ok || idx >= len(row) {
+		return ""
+	}
+	return row[idx]
+}
+
+func cleanNumeric(input string) string {
+	re := regexp.MustCompile(`[^0-9,.\-]`)
+	cleaned := re.ReplaceAllString(input, "")
+
+	if cleaned == "" || cleaned == "-" {
+		return "0"
+	}
+
+	// if there are 2 separators (comma & point), let assums:
+	// - thousand separator: appear first
+	// - decimal separator: appear last
+	if strings.Contains(cleaned, ",") && strings.Contains(cleaned, ".") {
+		lastComma := strings.LastIndex(cleaned, ",")
+		lastDot := strings.LastIndex(cleaned, ".")
+		if lastComma > lastDot {
+			// comma to be decimal, delete thousand point
+			cleaned = strings.ReplaceAll(cleaned, ".", "")
+			cleaned = strings.ReplaceAll(cleaned, ",", ".")
+		} else {
+			// point to be decimal, delete thousand comma
+			cleaned = strings.ReplaceAll(cleaned, ",", "")
+		}
+		return cleaned
+	}
+
+	// if there is only comma, check if it is decimal or not
+	if strings.Contains(cleaned, ",") {
+		lastComma := strings.LastIndex(cleaned, ",")
+		afterSep := len(cleaned) - lastComma - 1
+		if afterSep == 2 || afterSep == 1 {
+			// comma as decimal
+			cleaned = strings.ReplaceAll(cleaned, ".", "")
+			cleaned = strings.ReplaceAll(cleaned, ",", ".")
+		} else {
+			// comma as thousand
+			cleaned = strings.ReplaceAll(cleaned, ",", "")
+		}
+		return cleaned
+	}
+
+	// if there is only point, check if it is decimal or not
+	if strings.Contains(cleaned, ".") {
+		lastDot := strings.LastIndex(cleaned, ".")
+		afterSep := len(cleaned) - lastDot - 1
+		if afterSep == 2 || afterSep == 1 {
+			// point as decimal
+			// let it be
+		} else {
+			// point as thousand
+			cleaned = strings.ReplaceAll(cleaned, ".", "")
+		}
+		return cleaned
+	}
+
+	// if there is no point/comma, return it
+	return cleaned
 }

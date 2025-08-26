@@ -13,6 +13,7 @@
                 <Button 
                     label="Print" 
                     icon="pi pi-print" 
+                    @click="handlePrint"
                 />
            </div>
             
@@ -63,7 +64,8 @@
          <ModalLedger
             :isVisible="filterLedgerDialog" 
             @update:isVisible="filterLedgerDialog = $event"
-            @fetchLedgers="fetchLedger" />
+            @fetchLedgers="fetchLedger"
+            @sendFormData="saveFormData" />
     </main>
 </template>
 
@@ -90,7 +92,8 @@ export default {
             filteredData: null,
             openingBalance: null,
             grandTotalDebit: 0,
-            grandTotalCredit: 0
+            grandTotalCredit: 0,
+            formData: {}
         }
     },
     computed: {
@@ -121,6 +124,9 @@ export default {
         },
     },
     methods: {
+        saveFormData(data) {
+            this.formData = data
+        },
         formatCurrency(value) {
             if (value == null || value === undefined || isNaN(value)) return '-'
             const absFormatted =  new Intl.NumberFormat('id-ID', {
@@ -140,9 +146,54 @@ export default {
             const opening = ledgers.find(item => item.description === 'Saldo Awal' && item.id === null)
             this.openingBalance = opening ? parseFloat(opening.balance) || 0 : 0
 
-            // Simpan grand total langsung
             this.grandTotalDebit = totals.debit
             this.grandTotalCredit = totals.credit
+        },
+        async handlePrint() {
+            try {
+                this.showLoader()
+
+                const formatDate = (date) => {
+                    const localDate = new Date(date)
+                    return new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000)
+                        .toISOString().split("T")[0]
+                }
+
+                const params = {
+                    accountId: this.formData.selectedAccount?.id || null,
+                    startDate: formatDate(this.formData?.startDate),
+                    endDate: formatDate(this.formData?.endDate),
+                    division: this.formData?.division || null
+                }
+
+                const response = await this.$api.get(`${import.meta.env.VITE_API_URL}/print/ledger`, {
+                    params,
+                    responseType: 'blob',
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                    }
+                })
+
+                const blob = new Blob([response.data], { type: 'application/pdf' })
+                const url = window.URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.setAttribute('stream', 'Ledger Report.pdf')
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+
+            } catch (error) {
+                console.error('Print error:', error)
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Print Gagal',
+                    detail: error.response?.data?.message || 'Terjadi kesalahan saat mencetak.',
+                    life: 3000
+                })
+            } finally {
+                this.hideLoader()
+            }
         }
     },
 }

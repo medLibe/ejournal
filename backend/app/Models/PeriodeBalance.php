@@ -25,22 +25,6 @@ class PeriodeBalance extends Model
         $startOfTime = '2000-01-01'; // or system start
         $endDate = Carbon::parse($date_periode)->endOfMonth()->toDateString();
 
-        // $balances =  DB::table('periode_balances as pb')
-        //     ->join('accounts as a', 'pb.account_id', '=', 'a.id')
-        //     ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
-        //     ->join('account_groups as ag', 'at.account_group_id', '=', 'ag.id')
-        //     ->where('pb.periode', '<=', $formattedPeriode)
-        //     ->whereIn('ag.id', [1, 2, 3])
-        //     ->groupBy('ag.account_group_name', 'at.account_type_name')
-        //     ->select(
-        //         'ag.account_group_name',
-        //         'at.account_type_name',
-        //         DB::raw('SUM(pb.closing_balance) as total_balance')
-        //     )
-        //     ->orderBy('ag.account_group_name')
-        //     ->orderBy('at.account_type_name')
-        //     ->get();
-
         $balances = DB::table('general_ledgers as gl')
                         ->join('accounts as a', 'gl.account_id', '=', 'a.id')
                         ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
@@ -135,11 +119,25 @@ class PeriodeBalance extends Model
         }
 
         // calculated recursive balance
-        $calculateBalance = function ($account) use (&$calculateBalance, $division, $ledgerBalances) {
+        $calculateBalance = function ($account) use (&$calculateBalance, $division, $ledgerBalances, $formattedPeriode) {
             if ($division) {
-                $selfBalance = $ledgerBalances[$account->id] ?? 0;
+                // if division is not null, check ledger first. if it is not exist use opening_balance
+                // $selfBalance = $ledgerBalances[$account->id] ?? 0;
+                $selfBalance = $ledgerBalances[$account->id]
+                    ?? $account->balances->where('periode', '<=', $formattedPeriode)->first()?->opening_balance
+                    ?? $account->opening_balance
+                    ?? 0;
             } else {
-                $selfBalance = $account->balances->sum('closing_balance') ?? 0;
+                // get newest closing_balance before selected periode, if it not exist get from opening_balance in account
+                // $selfBalance = $account->balances->sum('closing_balance') ?? 0;
+                $balanceRecord = $account->balances
+                        ->where('periode', '<=', $formattedPeriode)
+                        ->sortByDesc('periode')
+                        ->first();
+
+                $selfBalance = $balanceRecord
+                    ? ($balanceRecord->closing_balance ?? $balanceRecord->opening_balance)
+                    : ($account->opening_balance ?? 0);
             }
 
             $childrenBalance = $account->children->sum(fn($child) => $calculateBalance($child));
@@ -159,9 +157,10 @@ class PeriodeBalance extends Model
                     'balance' => $calculatedBalance,
                     'children' => $filteredChildren
                 ];
-            })->filter(function ($account) {
-                return $account['balance'] != 0 || count($account['children']) > 0;
-            })->values();
+            })
+            ->filter(fn($acc) => $acc['balance'] != 0 || ($acc['children']->isNotEmpty() ?? false))
+            // ->filter(fn($acc) => $acc['balance'] != 0 || collect($acc['children'])->isNotEmpty())
+            ->values();
         };
 
         // grouping based on account groups
@@ -212,7 +211,7 @@ class PeriodeBalance extends Model
             })
             ->distinct()
             ->pluck('account_id');
-    
+
         $rawBalances = DB::table('periode_balances as pb')
                 ->join('accounts as a', 'pb.account_id', '=', 'a.id')
                 ->join('account_types as at', 'a.account_type_id', '=', 'at.id')
@@ -237,7 +236,7 @@ class PeriodeBalance extends Model
                 ->orderBy('a.account_code')
                 ->get();
 
-        
+
         $hierarchicalData = [];
         $totalIncome = 0;
         $totalCost = 0;
@@ -246,21 +245,11 @@ class PeriodeBalance extends Model
             $group = $row->account_type_id == 11 ? 'Harga Pokok Penjualan' : $row->account_group_name;
             $type = $row->account_type_name;
             $amount = floatval($row->total_balance);
-    
+
             if (!isset($hierarchicalData[$group])) {
                 $hierarchicalData[$group] = [];
             }
 
-            // find index type, if not exist, add in
-            // $typeIndex = array_search($type, array_column($hierarchicalData[$group], 'account_type_name'));
-            // if($typeIndex === false) {
-            //     $hierarchicalData[$group][] = [
-            //         'account_type_name' => $type,
-            //         'total_balance' => 0,
-            //         'accounts' => []
-            //     ];
-            //     $typeIndex = array_key_last($hierarchicalData[$group]);
-            // }
             $typeKey = array_search($type, array_map(function ($item) {
                 return $item['account_type_name'];
             }, $hierarchicalData[$group] ?? []));
@@ -303,8 +292,8 @@ class PeriodeBalance extends Model
 
         $profitBeforeTax = $totalIncome - $totalCost;
         $tax = $profitBeforeTax * 0.11; // tax 11%
-        $profitAfterTax = $profitBeforeTax - $tax;    
-        
+        $profitAfterTax = $profitBeforeTax - $tax;
+
         foreach ($hierarchicalData as $groupName => $types) {
             $types = array_filter($types, function ($type) {
                 return $type['total_balance'] != 0 || count($type['accounts']) > 0;
@@ -325,23 +314,36 @@ class PeriodeBalance extends Model
             }
         }
 
-         foreach ($hierarchicalData as $groupName => $value) {
+        foreach ($hierarchicalData as $groupName => $value) {
             if (!in_array($groupName, $priorityOrder)) {
                 $orderedData[$groupName] = $value;
             }
         }
 
+        foreach ($orderedData as &$group) {
+            foreach ($group as &$type) {
+                $type['total_balance'] = number_format(floatval($type['total_balance']), 0, ',', '.');
+
+                foreach ($type['accounts'] as &$account) {
+                    $account['total_balance'] = number_format(floatval($account['total_balance']), 0, ',', '.');
+                }
+                unset($account);
+            }
+            unset($type);
+        }
+        unset($group);
+
         return [
             "status" => true,
             "data" => $orderedData,
             "summary" => [
-                "total_income"      => $totalIncome,
-                "total_cost"        => $totalCost,
-                "profit_before_tax" => $profitBeforeTax,
-                "tax"               => $tax,
-                "profit_after_tax"  => $profitAfterTax
+                "total_income"      => number_format($totalIncome, 0, ',', '.'),
+                "total_cost"        => number_format($totalCost, 0, ',', '.'),
+                "profit_before_tax" => number_format($profitBeforeTax, 0, ',', '.'),
+                "tax"               => number_format($tax, 0, ',', '.'),
+                "profit_after_tax"  => number_format($profitAfterTax, 0, ',', '.')
             ]
-        ];    
+        ];
     }
 
     function getTrialBalance($start_date, $end_date, $division = null)
@@ -359,7 +361,8 @@ class PeriodeBalance extends Model
 
         // step 2: get opening balances
         $opening = DB::table('periode_balances')
-                ->where('periode', '<', $periodeStart)
+                ->where('periode', '>=', $periodeStart)
+                ->where('periode', '<=', $periodeEnd)
                 ->select('account_id', DB::raw('SUM(closing_balance) as opening_balance'))
                 ->groupBy('account_id')
                 ->pluck('opening_balance', 'account_id');

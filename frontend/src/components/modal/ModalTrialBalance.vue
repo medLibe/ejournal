@@ -160,13 +160,10 @@ export default {
         },
         // on submit action
         async onSubmitFilter() {
-            const startDate = this.formatDate(this.formData.startDate)
-            const endDate = this.formatDate(this.formData.endDate)
-            
             const params = {
-                startDate: startDate,
-                endDate: endDate,
-                division: this.formData.division?.value ?? null,
+                startDate: this.formatDate(this.formData?.startDate) || null,
+                endDate: this.formatDate(this.formData?.endDate) || null,
+                division: this.formData?.division?.value ?? null
             }
 
             this.showLoader()
@@ -193,7 +190,8 @@ export default {
                         // emit data
                         this.$emit('fetchTrialBalances', {
                             data: response.data.data.data,
-                            totals: response.data.data.totals
+                            totals: response.data.data.totals,
+                            filters: params,
                         })
 
                         // reset form

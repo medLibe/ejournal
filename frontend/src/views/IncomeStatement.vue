@@ -12,7 +12,8 @@
                 />
                 <Button 
                     label="Print" 
-                    icon="pi pi-print" 
+                    icon="pi pi-print"
+                    @click="handlePrint"
                 />
            </div>
             
@@ -36,11 +37,11 @@
 
                             <template v-for="(type, typeIndex) in group.account_types" :key="typeIndex">
                                 <tr>
-                                    <td class="pl-10 px-4 py-2 border border-gray-200">
+                                    <td class="pl-10 font-semibold px-4 py-2 border border-gray-200">
                                         {{ type.account_type_name || 'No Type Name' }}
                                     </td>
-                                    <td class="px-4 py-2 border border-gray-200 text-right">
-                                        {{ formatBalance(type.total_balance) }}
+                                    <td class="px-4 py-2 font-semibold border border-gray-200 text-right">
+                                        {{ type.total_balance }}
                                     </td>
                                 </tr>
 
@@ -52,7 +53,7 @@
                             <tr class="bg-gray-200 font-bold">
                                 <td class="pl-6 px-4 py-2 border border-gray-200">Total {{ group.account_group_name }}</td>
                                 <td class="px-4 py-2 border border-gray-200 text-right">
-                                    {{ formatBalance(group.total_balance) }}
+                                    {{ group.total_balance }}
                                 </td>
                             </tr>
                         </template>
@@ -61,19 +62,19 @@
                             <tr class="bg-blue-100 font-bold">
                                 <td class="pl-6 px-4 py-2 border border-gray-200">Laba Sebelum Pajak</td>
                                 <td class="px-4 py-2 border border-gray-200 text-right">
-                                    {{ formatBalance(summary.profit_before_tax) }}
+                                    {{ summary.profit_before_tax }}
                                 </td>
                             </tr>
                             <tr class="bg-yellow-100 font-bold">
                                 <td class="pl-6 px-4 py-2 border border-gray-200">Pajak (11%)</td>
                                 <td class="px-4 py-2 border border-gray-200 text-right text-red-500">
-                                    {{ formatBalance(summary.tax) }}
+                                    {{ summary.tax }}
                                 </td>
                             </tr>
                             <tr class="bg-green-100 font-bold">
                                 <td class="pl-6 px-4 py-2 border border-gray-200">Laba Setelah Pajak</td>
                                 <td class="px-4 py-2 border border-gray-200 text-right text-green-600">
-                                    {{ formatBalance(summary.profit_after_tax) }}
+                                    {{ summary.profit_after_tax }}
                                 </td>
                             </tr>
                         </template>
@@ -97,7 +98,7 @@
          <ModalIncomeStatement
             :isVisible="filterIncomeStatementDialog" 
             @update:isVisible="filterIncomeStatementDialog = $event"
-            @fetchIncomeStatements="fechIncomeStatement" />
+            @fetchIncomeStatements="fetchIncomeStatement" />
     </main>
 </template>
 
@@ -125,27 +126,34 @@ export default {
             viewTotal: false,
             viewParent: false,
             viewChildren: false,
+            filterParams: {}
         }
     },
     computed: {
         groupedData() {
+            const toNumber = s => {
+                if (!s) return 0
+                return parseFloat(String(s).replace(/\./g, '').replace(',', '.'))
+            }
+
             if (this.viewTotal && this.rawData?.data) {
                 return Object.entries(this.rawData.data).map(([groupName, accountTypes]) => {
                     const accountTypeMapped = accountTypes.map(accountType => {
                         return {
                             account_type_name: accountType.account_type_name,
-                            total_balance: parseFloat(accountType.total_balance) || 0,
+                            total_balance: accountType.total_balance,
                             accounts: accountType.accounts || []
                         }
                     })
 
-                    const groupTotalBalance = accountTypeMapped.reduce(
-                        (sum, type) => sum + type.total_balance, 0)
+                    const groupTotal = accountTypeMapped.reduce((sum, type) => {
+                        return sum + toNumber(type.total_balance)
+                    }, 0)
 
                     return {
                         account_group_name: groupName,
                         account_types: accountTypeMapped,
-                        total_balance: groupTotalBalance
+                        total_balance: groupTotal.toLocaleString('id-ID')
                     }
                 })
             }
@@ -153,7 +161,7 @@ export default {
         }
     },
     methods: {
-        fechIncomeStatement({ data, summary, viewTotal, viewParent, viewChildren }) {
+        fetchIncomeStatement({ data, summary, viewTotal, viewParent, viewChildren, filters }) {
             this.viewTotal = !!viewTotal
             this.viewParent = !!viewParent
             this.viewChildren = !!viewChildren
@@ -167,7 +175,54 @@ export default {
                 this.rawData = {}
                 this.summary = {}
             }
+
+            this.filterParams = filters || {}
         },
+        async handlePrint() {
+            try {
+                this.showLoader()
+
+                const formatDate = (date) => {
+                    if (!date) return null;
+                    const d = new Date(date)
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                }
+
+                const params = {
+                    startDate: formatDate(this.filterParams.startDate) || null,
+                    endDate: formatDate(this.filterParams.endDate) || null,
+                    division: this.filterParams.division || null,
+                    viewTotal: this.filterParams.viewTotal || false,
+                    viewParent: this.filterParams.viewParent || false,
+                    viewChildren: this.filterParams.viewChildren || false,
+                }
+
+                const response = await this.$api.get(
+                    `${import.meta.env.VITE_API_URL}/print/income-statement`,  // sesuaikan endpoint print
+                    {
+                        params,
+                        responseType: 'blob',
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                        }
+                    }
+                )
+
+                const blob = new Blob([response.data], { type: 'application/pdf' })
+                const url = window.URL.createObjectURL(blob)
+                window.open(url, '_blank')
+            } catch (error) {
+                console.error('Print error:', error)
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Print Gagal',
+                    detail: error.response?.data.message || 'Terjadi kesalahan saat mencetak.',
+                    life: 3000
+                })
+            } finally {
+                this.hideLoader()
+            }
+        }
     },
 }
 </script>

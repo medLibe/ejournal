@@ -7,6 +7,7 @@ use App\Http\Controllers\GeneralLedgerAdjustmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\GeneralLedgerController;
 use App\Http\Controllers\GeneralLedgerImportController;
+use App\Http\Controllers\ReportPrintController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\MultiGroupDatabase;
 use App\Models\GeneralLedgerImport;
@@ -72,5 +73,14 @@ Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', Mul
         Route::get('/ledger', 'getLedgers');
         Route::get('/ledger-detail', 'getLedgerDetails');
         Route::get('/accounts', 'getAccounts');
+    });
+
+    Route::prefix('print')->controller(ReportPrintController::class)->group(function() {
+        Route::get('/balance-sheet', 'printBalanceSheets');
+        Route::get('/trial-balance', 'printTrialBalances');
+        Route::get('/income-statement', 'printIncomeStatements');
+        Route::get('/ledger', 'printLedgers');
+        Route::get('/ldeger-detail', 'printLedgerDetails');
+
     });
 });

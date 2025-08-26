@@ -122,7 +122,13 @@ func StoreImportGeneralLedgerHandler(c *gin.Context) {
 			opening = pb.ClosingBalance
 		}
 
-		newBalance := updateAccountBalance(row, opening, false)
+		// use old balance
+		balance := opening
+		if last, ok := newBalances[row.IDAkun]; ok {
+			balance = last
+		}
+
+		newBalance := updateAccountBalance(row, balance, false)
 		newBalances[row.IDAkun] = newBalance
 
 		glBatch = append(glBatch, models.GeneralLedger{

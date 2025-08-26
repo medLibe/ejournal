@@ -7,6 +7,7 @@ use App\Models\GeneralLedger;
 use App\Models\PeriodeBalance;
 use Exception;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -25,12 +26,12 @@ class ReportController extends Controller
     {
         try {
             $date_periode = $request->query('datePeriode');
+            $division = $request->query('division');
             $view_total = $request->query('viewTotal') === 'true';
             $view_parent = $request->query('viewParent') === 'true';
             $view_children = $request->query('viewChildren') === 'true';
-            $division = $request->query('division');
 
-            if(!$date_periode) {
+            if (!$date_periode) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Tanggal wajib diisi.'
@@ -73,7 +74,7 @@ class ReportController extends Controller
             $end_date = $request->query('endDate');
             $division = $request->query('division');
 
-            if(!$start_date || !$end_date) {
+            if (!$start_date || !$end_date) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Tanggal wajib diisi.'
@@ -122,11 +123,11 @@ class ReportController extends Controller
                 ], 400);
             }
 
-            if ($view_total) {
-                $result = $this->periodeBalance->getTotalIncomeStatement($start_date, $end_date, $division);
-            } else {
-                $result = $this->periodeBalance->getDetailedIncomeStatement($start_date, $end_date, $view_children);
-            }
+            $result = $this->periodeBalance->getTotalIncomeStatement($start_date, $end_date, $division);
+            // if ($view_total) {
+            // } else {
+            //     $result = $this->periodeBalance->getDetailedIncomeStatement($start_date, $end_date, $view_children);
+            // }
 
             return response()->json([
                 'status'    => true,
@@ -165,14 +166,14 @@ class ReportController extends Controller
             $account_id = $request->query('accountId');
             $division = $request->query('division');
 
-            if(!$start_date && !$end_date) {
+            if (!$start_date && !$end_date) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Tanggal wajib diisi.'
                 ], 400);
             }
 
-            if(!$account_id) {
+            if (!$account_id) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Akun wajib dipilih.'
@@ -200,16 +201,16 @@ class ReportController extends Controller
             $end_date = $request->query('endDate');
             $division = $request->query('division');
 
-    
+
             if (!$start_date || !$end_date) {
                 return response()->json([
                     'status'    => false,
                     'message'   => 'Tanggal awal dan akhir wajib diisi.'
                 ], 400);
             }
-    
+
             $result = $this->generalLedger->getLedgerDetails($start_date, $end_date, $division);
-    
+
             return response()->json([
                 'status'    => true,
                 'data'      => $result

@@ -36,7 +36,7 @@ class ExportAccounts implements FromCollection, WithHeadings, ShouldAutoSize, Wi
             'account_code' => str_repeat('    ', $indentLevel) . $account->account_code,
             'account_name' => str_repeat('    ', $indentLevel) . $account->account_name,
             'account_type' => $account->accountType->account_type_name ?? '-',
-            'balance' => $account->beginning_balance ? 'Rp ' . number_format($account->beginning_balance, 2, ',', '.') : '-'
+            'balance' => $account->opening_balance ? 'Rp ' . number_format($account->opening_balance, 2, ',', '.') : '-'
         ]]);
 
         // check if sub account exists

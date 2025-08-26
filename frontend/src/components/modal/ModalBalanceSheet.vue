@@ -50,7 +50,7 @@
                     $form.division.error?.message }}</Message>
             </div>
 
-            <div class="card flex flex-col gap-4">
+            <!-- <div class="card flex flex-col gap-4">
                 <label for="">Parameter:</label>
                 <div class="flex items-center gap-2">
                     <Checkbox 
@@ -79,7 +79,7 @@
                         :disabled="formData.viewTotal" />
                     <label for="view_children">Tampilkan Anak</label>
                 </div>
-            </div>
+            </div> -->
         </Form>
 
         <template #footer>
@@ -138,8 +138,8 @@ export default {
             formData: {
                 datePeriode: null,
                 viewTotal: false,
-                viewParent: false,
-                viewChildren: false,
+                viewParent: true,
+                viewChildren: true,
                 division: null,
             }
         }
@@ -217,7 +217,8 @@ export default {
                             data: response.data.data,
                             viewTotal: this.formData.viewTotal,
                             viewParent: this.formData.viewParent,
-                            viewChildren: this.formData.viewChildren
+                            viewChildren: this.formData.viewChildren,
+                            filters: params
                         })
 
                         // reset form
@@ -229,8 +230,6 @@ export default {
                         if ('division' in this.formData) {
                             resetForm.division = null
                         }
-
-                        this.formData = resetForm
 
                         // Tutup modal
                         this.onCancel()

@@ -243,7 +243,8 @@ export default {
                             summary: response.data.data.summary,
                             viewTotal: this.formData.viewTotal,
                             viewParent: this.formData.viewParent,
-                            viewChildren: this.formData.viewChildren
+                            viewChildren: this.formData.viewChildren,
+                            filters: params,
                         })
 
                         // reset form

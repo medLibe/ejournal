@@ -120,7 +120,7 @@ export default {
         },
     },
     inject: ['showLoader' , 'hideLoader'],
-    emits: ['fetchLedgers', 'update:isVisible'],
+    emits: ['fetchLedgers', 'update:isVisible', 'sendFormData'],
     data() {
         return {
             responseMessage: null,
@@ -209,7 +209,17 @@ export default {
                         })
 
                         // emit data
-                        this.$emit('fetchLedgers', response.data.data.ledgers, response.data.data.totals)
+                        this.$emit('fetchLedgers', 
+                            response.data.data.ledgers, 
+                            response.data.data.totals
+                        )
+
+                        this.$emit('sendFormData', {
+                            startDate: this.formData.startDate,
+                            endDate: this.formData.endDate,
+                            division: this.formData.division?.value ?? null,
+                            selectedAccount: this.formData.selectedAccount
+                        })
 
                          // reset form
                         const resetForm = {
@@ -240,12 +250,12 @@ export default {
                     }
                     this.responseMessage = {
                         severity: severity,
-                        detail: error.response ? error.response.data.message : 'An error occurred during import.',
+                        detail: error.response ? error.response.data.message : 'An error occurred during filter.',
                     }
                     this.$toast.add({
                         severity: severity,
                         summary: 'Filter Data Gagal',
-                        detail: error.response ? error.response.data.message : 'An error occurred during import.',
+                        detail: error.response ? error.response.data.message : 'An error occurred during filter.',
                         life: 3000
                     })
 

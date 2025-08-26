@@ -88,29 +88,29 @@ class GeneralLedger extends Model
         }
     }
 
-    public static function getGeneralLedgersForPrint($params = [])
-    {
-        $startDate = $params['start_date'] ?? null;
-        $endDate   = $params['end_date'] ?? null;
+    // public static function getGeneralLedgersForPrint($params = [])
+    // {
+    //     $startDate = $params['start_date'] ?? null;
+    //     $endDate   = $params['end_date'] ?? null;
 
-        if (!$startDate || !$endDate) {
-            throw new InvalidArgumentException('Tanggal tidak valid.');
-        }
+    //     if (!$startDate || !$endDate) {
+    //         throw new InvalidArgumentException('Tanggal tidak valid.');
+    //     }
 
-        return DB::table('general_ledgers as gl')
-            ->select([
-                'gl.reference_no',
-                'gl.reference',
-                DB::raw("MAX(gl.transaction_date) as transaction_date"),
-                DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_debit"),
-                DB::raw("SUM(CASE WHEN gl.transaction_type = 2 THEN gl.amount ELSE 0 END) AS total_credit"),
-                DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_amount")
-            ])
-            ->whereBetween('gl.transaction_date', [$startDate, $endDate])
-            ->groupBy('gl.reference_no', 'gl.reference')
-            ->orderBy(DB::raw('MAX(gl.transaction_date)'), 'desc')
-            ->get();
-    }
+    //     return DB::table('general_ledgers as gl')
+    //         ->select([
+    //             'gl.reference_no',
+    //             'gl.reference',
+    //             DB::raw("MAX(gl.transaction_date) as transaction_date"),
+    //             DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_debit"),
+    //             DB::raw("SUM(CASE WHEN gl.transaction_type = 2 THEN gl.amount ELSE 0 END) AS total_credit"),
+    //             DB::raw("SUM(CASE WHEN gl.transaction_type = 1 THEN gl.amount ELSE 0 END) AS total_amount")
+    //         ])
+    //         ->whereBetween('gl.transaction_date', [$startDate, $endDate])
+    //         ->groupBy('gl.reference_no', 'gl.reference')
+    //         ->orderBy(DB::raw('MAX(gl.transaction_date)'), 'desc')
+    //         ->get();
+    // }
 
     public function getLedgers($account_id, $start_date, $end_date, $division = null)
     {
@@ -183,7 +183,7 @@ class GeneralLedger extends Model
                 ->whereBetween('transaction_date', [$start_date, $end_date])
                 ->join('accounts', 'general_ledgers.account_id', '=', 'accounts.id');
 
-        if ($division) {
+        if (!empty($division)) {
             $transactionsQuery->where('general_ledgers.department', $division);
         }
 

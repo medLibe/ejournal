@@ -26,7 +26,7 @@
             </div>
 
             <!-- preview -->
-            <template v-if="previewData.length > 0">
+            <template v-if="previewData && previewData.length > 0">
                 <div class="p-2 border border-gray-300 rounded mt-3">
                     <h3 class="italic font-semibold text-center">Klik tombol Import untuk konfirmasi</h3>
                     <DataTable 

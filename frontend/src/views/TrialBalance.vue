@@ -13,6 +13,7 @@
                 <Button 
                     label="Print" 
                     icon="pi pi-print" 
+                    @click="handlePrint"
                 />
            </div>
             
@@ -146,13 +147,18 @@ export default {
         return {
             filterTrialBalanceDialog: false,
             rawData: [],
-                totalSummary: {
+            totalSummary: {
                 opening_debit: 0,
                 opening_credit: 0,
                 mutation_debit: 0,
                 mutation_credit: 0,
                 closing_debit: 0,
                 closing_credit: 0,
+            },
+            filterParams: {
+                startDate: null,
+                endDate: null,
+                division: null,
             }
         }
     },
@@ -181,9 +187,7 @@ export default {
         }
     },
     methods: {
-        fetchTrialBalance({ data, totals }) {
-            console.log(data)
-            console.log(totals)
+        fetchTrialBalance({ data, totals, filters }) {
             this.rawData = Array.isArray(data) ? data : []
             this.totalSummary = totals || {
                 opening_debit: 0,
@@ -193,6 +197,8 @@ export default {
                 closing_debit: 0,
                 closing_credit: 0,
             }
+
+            this.filterParams = filters
         },
         formatBalance(value) {
             if (value === null || value === undefined) return ' '
@@ -200,6 +206,49 @@ export default {
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
             }).format(parseFloat(value))
+        },
+        async handlePrint() {
+            try {
+                this.showLoader()
+
+                const formatDate = (date) => {
+                    const localDate = new Date(date)
+                    return new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000)
+                        .toISOString().split("T")[0]
+                }
+
+                  const params = {
+                    startDate: formatDate(this.filterParams?.startDate) || null,
+                    endDate: formatDate(this.filterParams?.endDate) || null,
+                    division: this.filterParams?.division || null
+                }
+
+
+                const response = await this.$api.get(
+                    `${import.meta.env.VITE_API_URL}/print/trial-balance`,
+                    {
+                        params,
+                        responseType: 'blob',
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                        }
+                    }
+                )
+
+                const blob = new Blob([response.data], { type: 'application/pdf' })
+                const url = window.URL.createObjectURL(blob)
+                window.open(url, '_blank')
+            } catch (error) {
+                console.error('Print error:', error)
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Print Gagal',
+                    detail: error.response?.data.message || 'Terjadi kesalahan saat mencetak.',
+                    life: 3000
+                })
+            } finally {
+                this.hideLoader()
+            }
         },
     },
 }

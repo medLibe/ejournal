@@ -11,6 +11,7 @@
                     icon="pi pi-filter" 
                 />
                 <Button 
+                    @click="handlePrint"
                     label="Print" 
                     icon="pi pi-print" 
                 />
@@ -102,6 +103,13 @@ export default {
             viewTotal: false,
             viewParent: false,
             viewChildren: false,
+            filterParams: {
+                datePeriode: null,
+                viewTotal: false,
+                viewParent: false,
+                viewChildren: false,
+                division: null,
+            }
         }
     },
     computed: {
@@ -134,7 +142,7 @@ export default {
         isNegative(value) {
             return parseFloat(value) < 0
         },
-        fetchBalanceSheet({ data, viewTotal, viewParent, viewChildren }) {
+        fetchBalanceSheet({ data, viewTotal, viewParent, viewChildren, filters }) {
             this.viewTotal = !!viewTotal
             this.viewParent = !!viewParent
             this.viewChildren = !!viewChildren
@@ -144,6 +152,8 @@ export default {
             } else {
                 this.rawData = Array.isArray(data) ? data : []
             }
+
+            this.filterParams = filters
         },
         formatBalance(value) {
             if (value === null || value === undefined) return ' '
@@ -155,6 +165,52 @@ export default {
             }).format(Math.abs(number))
 
             return number < 0 ? `(${formatted})` : formatted
+        },
+        async handlePrint() {
+            try {
+                this.showLoader()
+
+               const formatDate = (date) => {
+                    const d = new Date(date)
+                    const year = d.getFullYear()
+                    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                    const day = d.getDate().toString().padStart(2, '0')
+                    return `${year}-${month}-${day}`
+                }
+
+                const params = {
+                    datePeriode: formatDate(this.filterParams?.datePeriode) || null,
+                    viewTotal: this.filterParams?.viewTotal || false,
+                    viewParent: this.filterParams?.viewParent || false,
+                    viewChildren: this.filterParams?.viewChildren || false,
+                    division: this.filterParams?.division || null
+                }
+
+                const response = await this.$api.get(
+                    `${import.meta.env.VITE_API_URL}/print/balance-sheet`,
+                    {
+                        params,
+                        responseType: 'blob',
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+                        }
+                    }
+                )
+
+                const blob = new Blob([response.data], { type: 'application/pdf' })
+                const url = window.URL.createObjectURL(blob)
+                window.open(url, '_blank')
+            } catch (error) {
+                console.error('Print error:', error)
+                this.$toast.add({
+                    severity: 'error',
+                    summary: 'Print Gagal',
+                    detail: error.response?.data.message || 'Terjadi kesalahan saat mencetak.',
+                    life: 3000
+                })
+            } finally {
+                this.hideLoader()
+            }
         }
     },
 }

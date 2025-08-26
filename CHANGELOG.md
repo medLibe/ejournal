@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.4] - 2025-08-26
+### Added
+- **PDF Export Features**:
+  - Added print/PDF export functionality for the following reports:
+    - Balance Sheet
+    - Trial Balance (Neraca Saldo)
+    - Ledger (Buku Besar)
+    - Income Statement (Laba Rugi)
+
+### Fixed
+- **Journal Import Validation**:
+  - Improved error handling for journal import: 
+    - Now rejects the import if any account code is not found in the database
+    - Displays a detailed error listing unmatched accounts
+
 ## [1.0.3] - 2025-07-21
 ### Added
 - **Report Menu Enhancements**:
